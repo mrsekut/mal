@@ -1,4 +1,4 @@
-module Mal.Step0repl where
+module Main where
 
 import Prelude
 import Effect (Effect)

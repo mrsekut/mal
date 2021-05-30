@@ -1,7 +1,7 @@
 
 
-step%:
-	spago run --main $($@.purs)
+src/step%:
+	spago bundle-app --main Main --to $(@F:%.purs=%.js)
 
 
 #####################
