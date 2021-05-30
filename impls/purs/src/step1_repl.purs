@@ -1,11 +1,15 @@
-module Main0 where
+module Main where
 
 import Prelude
+import Data.Either (Either(..))
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
+import Mal.Reader (readString)
+import Printer (printStr)
 import Readline (readLine)
+import Types (MalExpr)
 
 main :: Effect Unit
 main = do
@@ -17,12 +21,12 @@ loop = do
   case line of
     ":q" -> pure unit
     ":Q" -> pure unit
-    _ -> do
-      liftEffect $ log line
+    str -> do
+      liftEffect $ log $ rep line
       loop
 
-read :: String -> String
-read s = s
+read :: String -> Either String MalExpr
+read = readString
 
 eval :: String -> String
 eval s = s
@@ -31,4 +35,6 @@ print :: String -> String
 print s = s
 
 rep :: String -> String
-rep = read >>> eval >>> print
+rep str = case read str of
+  Left s -> "aa"
+  Right s -> printStr s # eval # print
