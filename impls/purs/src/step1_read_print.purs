@@ -36,5 +36,5 @@ print s = s
 
 rep :: String -> String
 rep str = case read str of
-  Left s -> "aa"
+  Left s -> "error"
   Right s -> printStr s # eval # print

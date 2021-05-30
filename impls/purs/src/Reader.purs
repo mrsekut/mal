@@ -2,18 +2,18 @@ module Mal.Reader where
 
 import Prelude
 import Control.Alt ((<|>))
-import Control.Monad.Error.Class (try)
-import Data.Array (fromFoldable)
+import Control.Lazy (fix)
+import Data.Array (fromFoldable, toUnfoldable)
 import Data.Either (Either(..))
 import Data.Int (fromString)
-import Data.List (List, many, (:))
+import Data.List (List(..), many, some, (:))
 import Data.Maybe (fromMaybe)
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Text.Parsing.Parser (Parser, runParser)
-import Text.Parsing.Parser.Combinators (sepBy, sepEndBy, skipMany, skipMany1)
-import Text.Parsing.Parser.String (char, noneOf, oneOf)
+import Text.Parsing.Parser.Combinators (sepBy, sepEndBy, skipMany, skipMany1, try)
+import Text.Parsing.Parser.String (char, noneOf, oneOf, string)
 import Text.Parsing.Parser.Token (digit, letter)
-import Types (MalExpr(..))
+import Types (MalExpr(..), toList)
 
 -- FIXME: name
 type P a
@@ -37,16 +37,13 @@ ignored = skipMany (spaces <|> comment)
 symbol :: P Char
 symbol = oneOf' "!#$%&|*+-/:<=>?@^_~"
 
-read_number :: P MalExpr
-read_number = do
-  f <- sign
-  n <- nat
-  pure $ MalInt $ f n
+readNumber :: P MalExpr
+readNumber = MalInt <$> nat
 
-sign :: ∀ a. (Ring a) => P (a -> a)
-sign =
-  (char '-' $> negate)
-    <|> pure identity
+readNegativeNumber :: P MalExpr
+readNegativeNumber = f <$> char '-' <*> nat
+  where
+  f sign rest = MalInt $ negate rest
 
 nat :: P Int
 nat = do
@@ -57,13 +54,14 @@ nat = do
 charListToString :: List Char -> String
 charListToString = fromCharArray <<< fromFoldable
 
+-- FIXME: name
 read_string :: P MalExpr
 read_string = do
   rest <- char '"' *> (many $ letter <|> symbol <|> digit <|> char ' ') <* char '"'
   pure <<< MalString <<< charListToString $ rest
 
-read_symbol :: P MalExpr
-read_symbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
+readSymbol :: P MalExpr
+readSymbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
   where
   f first rest = g $ charListToString (first : rest)
 
@@ -75,27 +73,51 @@ read_symbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
 
   g s = MalSymbol s
 
--- read_keyword :: P MalExpr
--- read_keyword = MalKeyword $ (:) '\x029e' <$> a
--- a = (char ':' *> many (letter <|> digit <|> symbol))
-readAtom :: P MalExpr
-readAtom =
-  read_number
-    <|> read_string
-    <|> read_symbol
+readKeyword :: P MalExpr
+readKeyword = MalString <$> charListToString <$> ((:) '\x029') <$> (char ':' *> many (letter <|> digit <|> symbol))
 
--- read_list :: P MalExpr
--- read_list = MalList <$> (char '(' *> ignored *> sepEndBy readForm ignored <* char ')')
--- parseDottedList :: SParser Expr
--- parseDottedList = do
---   init <- many $ whiteSpace *> parseAtom <* whiteSpace
---   _ <- whiteSpace *> char '.' <* whiteSpace
---   rest <- whiteSpace *> parseAtom <* whiteSpace
---   pure $ DottedList init rest
--- read_vector :: P MalExpr
--- read_vector = MalVector <$> (char '[' *> ignored *> sepEndBy readForm ignored <* char ']')
+readAtom :: P MalExpr
+readAtom = readNumber <|> try readNegativeNumber <|> read_string <|> readKeyword <|> readSymbol
+
+readList :: P MalExpr
+readList = fix $ \x -> MalList <$> (char '(' *> ignored *> (sepEndBy readForm ignored) <* char ')')
+
+-- readHashMap :: P MalExpr
+-- readHashMap = g >>> keyValuePairs =<< (char '{' *> ignored *> sepEndBy readForm ignored <* char '}')
+--   where
+--   g (Just pairs) = return $ MalHashMap (MetaData Nil) (Map.fromList pairs)
+--   g Nothing = fail "invalid contents inside map braces"
+addPrefix :: String -> MalExpr -> MalExpr
+addPrefix s x = toList $ MalSymbol s : x : Nil
+
+readQuote :: P MalExpr
+readQuote = addPrefix "quote" <$> (char '\'' *> readForm)
+
+readQuasiquote :: P MalExpr
+readQuasiquote = addPrefix "quasiquote" <$> (char '`' *> readForm)
+
+readSpliceUnquote :: P MalExpr
+readSpliceUnquote = addPrefix "splice-unquote" <$> (string "~@" *> readForm)
+
+readUnquote :: P MalExpr
+readUnquote = addPrefix "unquote" <$> (char '~' *> readForm)
+
+readDeref :: P MalExpr
+readDeref = addPrefix "deref" <$> (char '@' *> readForm)
+
+readWithMeta :: P MalExpr
+readWithMeta = f <$> (char '^' *> readForm) <*> readForm
+  where
+  f m x = toList $ MalSymbol "with-meta" : x : m : Nil
+
+read_macro :: P MalExpr
+read_macro = readQuote <|> readQuasiquote <|> try readSpliceUnquote <|> readUnquote <|> readDeref <|> readWithMeta
+
+readVector :: P MalExpr
+readVector = fix $ \x -> MalVector <$> (char '[' *> ignored *> sepEndBy readForm ignored <* char ']')
+
 readForm :: P MalExpr
-readForm = ignored *> (readAtom)
+readForm = fix $ \s -> ignored *> (readList <|> readVector <|> readAtom)
 
 -- FIXME: 何もやってない感がすごい
 readString :: String -> Either String MalExpr

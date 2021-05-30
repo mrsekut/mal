@@ -9,10 +9,17 @@ data MalExpr
   | MalString String
   -- | MalKeyword String
   | MalSymbol String
+  | MalList (List MalExpr)
+  | MalVector (List MalExpr)
 
--- | MalList (List MalExpr)
--- | MalVector (List MalExpr)
 -- | MalMap (Dict String MalExpr)
 -- | MalFunction MalFunction
 -- | MalApply ApplyRec
 -- | MalAtom Int
+toList :: List MalExpr -> MalExpr
+toList = MalList
+
+-- keyValuePairs :: List MalExpr -> Maybe List (String, MalExpr)
+-- keyValuePairs []                      = pure []
+-- keyValuePairs (MalString k : v : kvs) = ((k, v) :) <$> keyValuePairs kvs
+-- keyValuePairs _ = Nothing
