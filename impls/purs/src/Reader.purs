@@ -6,7 +6,7 @@ import Control.Lazy (fix)
 import Data.Array (fromFoldable)
 import Data.Either (Either(..))
 import Data.Int (fromString)
-import Data.List (List, many, (:))
+import Data.List (List(..), concat, many, (:))
 import Data.Maybe (fromMaybe)
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Text.Parsing.Parser (Parser, runParser)
@@ -19,7 +19,7 @@ spaces :: Parser String Unit
 spaces = skipMany1 $ oneOf' ", \n"
 
 comment :: Parser String Unit
-comment = char ';' *> (skipMany $ noneOf' "\r\n")
+comment = char ';' *> (skipMany $ noneOf [ '\r', '\n' ])
 
 ignored :: Parser String Unit
 ignored = skipMany $ spaces <|> comment
@@ -39,18 +39,22 @@ nat = do
   rest <- many digit
   pure <<< fromMaybe 0 <<< fromString <<< charListToString $ first : rest
 
-escaped :: Parser String Char
-escaped = f <$> (char '\\' *> oneOf [ '\\', '\"', 'n' ])
-  where
-  f 'n' = '\n'
+escape :: Parser String (List Char)
+escape = do
+  b <- char '\\'
+  c <- oneOf [ '\"', '\\' ]
+  pure $ b : c : Nil
 
-  f x = x
+nonEscape :: Parser String (List Char)
+nonEscape = do
+  n <- noneOf [ '\"', '\\' ]
+  pure $ n : Nil
 
 readString :: Parser String MalExpr
 readString =
   MalString
     <<< charListToString
-    <$> (char '"' *> many (escaped <|> noneOf [ '\\', '\"' ]) <* char '"')
+    <$> (char '"' *> (concat <$> many (escape <|> nonEscape)) <* char '"')
 
 -- FIXME: name
 readSymbol :: Parser String MalExpr
