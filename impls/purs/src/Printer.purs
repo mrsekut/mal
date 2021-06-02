@@ -27,7 +27,7 @@ printStr :: MalExpr -> String
 -- _pr_str _ (MalString (c : cs))
 --   | c == keywordMagic = return $ ':' : cs
 -- printStr True  (MalString str)    = return $ "\"" ++ concatMap unescape str ++ "\""
-printStr (MalString str) = str
+printStr (MalString str) = "\"" <> str <> "\""
 
 printStr (MalInt num) = show num
 
