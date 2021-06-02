@@ -42,7 +42,7 @@ nat = do
 escape :: Parser String (List Char)
 escape = do
   b <- char '\\'
-  c <- oneOf [ '\"', '\\' ]
+  c <- oneOf [ '\"', '\\', 'n' ]
   pure $ b : c : Nil
 
 nonEscape :: Parser String (List Char)
@@ -50,12 +50,21 @@ nonEscape = do
   n <- noneOf [ '\"', '\\' ]
   pure $ n : Nil
 
+-- escaped :: Parser String Char
+-- escaped = f <$> (char '\\' *> oneOf [ '\\', '\"', 'n' ])
+--   where
+--   f 'n' = '\n'
+--   f x = x
 readString :: Parser String MalExpr
 readString =
   MalString
     <<< charListToString
     <$> (char '"' *> (concat <$> many (escape <|> nonEscape)) <* char '"')
 
+-- readString =
+--   MalString
+--     <<< charListToString
+--     <$> (char '"' *> many (escaped <|> noneOf [ '\\', '\"' ]) <* char '"')
 -- FIXME: name
 readSymbol :: Parser String MalExpr
 readSymbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
@@ -152,5 +161,6 @@ oneOf' = oneOf <<< toCharArray
 noneOf' :: String -> Parser String Char
 noneOf' = noneOf <<< toCharArray
 
+-- FIXME: move
 charListToString :: List Char -> String
 charListToString = fromCharArray <<< fromFoldable

@@ -1,6 +1,7 @@
 module Types where
 
 import Data.List (List)
+import Data.Map (Map)
 
 data MalExpr
   = MalNil
@@ -11,15 +12,10 @@ data MalExpr
   | MalSymbol String
   | MalList (List MalExpr)
   | MalVector (List MalExpr)
+  | MalHashMap (Map String MalExpr)
 
--- | MalMap (Dict String MalExpr)
 -- | MalFunction MalFunction
 -- | MalApply ApplyRec
 -- | MalAtom Int
 toList :: List MalExpr -> MalExpr
 toList = MalList
-
--- keyValuePairs :: List MalExpr -> Maybe List (String, MalExpr)
--- keyValuePairs []                      = pure []
--- keyValuePairs (MalString k : v : kvs) = ((k, v) :) <$> keyValuePairs kvs
--- keyValuePairs _ = Nothing
