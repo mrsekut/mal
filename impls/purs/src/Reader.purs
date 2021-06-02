@@ -11,9 +11,9 @@ import Data.Maybe (fromMaybe)
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Text.Parsing.Parser (Parser, runParser)
 import Text.Parsing.Parser.Combinators (endBy, skipMany, skipMany1, try)
-import Text.Parsing.Parser.String (char, noneOf, oneOf)
+import Text.Parsing.Parser.String (char, noneOf, oneOf, string)
 import Text.Parsing.Parser.Token (digit, letter)
-import Types (MalExpr(..))
+import Types (MalExpr(..), toList)
 
 spaces :: Parser String Unit
 spaces = skipMany1 $ oneOf' ", \n"
@@ -96,29 +96,44 @@ readList = fix $ \_ -> MalList <$> (char '(' *> ignored *> (endBy readForm ignor
 --   where
 --   g (Just pairs) = return $ MalHashMap (MetaData Nil) (Map.fromList pairs)
 --   g Nothing = fail "invalid contents inside map braces"
--- addPrefix :: String -> MalExpr -> MalExpr
--- addPrefix s x = toList $ MalSymbol s : x : Nil
--- readQuote :: Parser String MalExpr
--- readQuote = addPrefix "quote" <$> (char '\'' *> readForm)
--- readQuasiquote :: Parser String MalExpr
--- readQuasiquote = addPrefix "quasiquote" <$> (char '`' *> readForm)
--- readSpliceUnquote :: Parser String MalExpr
--- readSpliceUnquote = addPrefix "splice-unquote" <$> (string "~@" *> readForm)
--- readUnquote :: Parser String MalExpr
--- readUnquote = addPrefix "unquote" <$> (char '~' *> readForm)
--- readDeref :: Parser String MalExpr
--- readDeref = addPrefix "deref" <$> (char '@' *> readForm)
+addPrefix :: String -> MalExpr -> MalExpr
+addPrefix s x = toList $ MalSymbol s : x : Nil
+
+readQuote :: Parser String MalExpr
+readQuote = fix $ \_ -> addPrefix "quote" <$> (char '\'' *> readForm)
+
+readQuasiquote :: Parser String MalExpr
+readQuasiquote = fix $ \_ -> addPrefix "quasiquote" <$> (char '`' *> readForm)
+
+readSpliceUnquote :: Parser String MalExpr
+readSpliceUnquote = fix $ \_ -> addPrefix "splice-unquote" <$> (string "~@" *> readForm)
+
+readUnquote :: Parser String MalExpr
+readUnquote = fix $ \_ -> addPrefix "unquote" <$> (char '~' *> readForm)
+
+readDeref :: Parser String MalExpr
+readDeref = fix $ \_ -> addPrefix "deref" <$> (char '@' *> readForm)
+
 -- readWithMeta :: Parser String MalExpr
 -- readWithMeta = f <$> (char '^' *> readForm) <*> readForm
 --   where
 --   f m x = toList $ MalSymbol "with-meta" : x : m : Nil
--- read_macro :: Parser String MalExpr
+readMacro :: Parser String MalExpr
+readMacro =
+  fix
+    $ \_ ->
+        readQuote
+          <|> readQuasiquote
+          <|> try readSpliceUnquote
+          <|> readUnquote
+          <|> readDeref
+
 -- read_macro = readQuote <|> readQuasiquote <|> try readSpliceUnquote <|> readUnquote <|> readDeref <|> readWithMeta
 readVector :: Parser String MalExpr
 readVector = fix $ \_ -> MalVector <$> (char '[' *> ignored *> endBy readForm ignored <* char ']')
 
 readForm :: Parser String MalExpr
-readForm = fix $ \_ -> ignored *> (readList <|> readVector <|> readAtom)
+readForm = fix $ \_ -> ignored *> (readMacro <|> readList <|> readVector <|> readAtom)
 
 -- FIXME: 何もやってない感がすごい
 readStr :: String -> Either String MalExpr
