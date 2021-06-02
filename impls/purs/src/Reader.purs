@@ -7,10 +7,12 @@ import Data.Array (fromFoldable)
 import Data.Either (Either(..))
 import Data.Int (fromString)
 import Data.List (List(..), concat, many, (:))
-import Data.Maybe (fromMaybe)
+import Data.Map (union)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String.CodeUnits (fromCharArray, toCharArray)
+import Printer (keyValuePairs)
 import Text.Parsing.Parser (Parser, runParser)
-import Text.Parsing.Parser.Combinators (endBy, skipMany, skipMany1, try)
+import Text.Parsing.Parser.Combinators (endBy, sepEndBy, skipMany, skipMany1, try)
 import Text.Parsing.Parser.String (char, noneOf, oneOf, string)
 import Text.Parsing.Parser.Token (digit, letter)
 import Types (MalExpr(..), toList)
@@ -100,11 +102,19 @@ readAtom =
 readList :: Parser String MalExpr
 readList = fix $ \_ -> MalList <$> (char '(' *> ignored *> (endBy readForm ignored) <* char ')')
 
--- readHashMap :: Parser String MalExpr
--- readHashMap = g >>> keyValuePairs =<< (char '{' *> ignored *> sepEndBy readForm ignored <* char '}')
---   where
---   g (Just pairs) = return $ MalHashMap (MetaData Nil) (Map.fromList pairs)
---   g Nothing = fail "invalid contents inside map braces"
+mmm :: Parser String (List MalExpr)
+mmm = fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}'
+
+readHashMap :: Parser String MalExpr
+readHashMap = do
+  m <- mmm
+  pure $ g $ keyValuePairs m
+  where
+  g :: Maybe (List { key :: String, val :: MalExpr }) -> MalExpr
+  g (Just pairs) = MalHashMap pairs
+
+  g Nothing = MalString "hash map error" -- FIXME: error
+
 addPrefix :: String -> MalExpr -> MalExpr
 addPrefix s x = toList $ MalSymbol s : x : Nil
 
@@ -142,7 +152,16 @@ readVector :: Parser String MalExpr
 readVector = fix $ \_ -> MalVector <$> (char '[' *> ignored *> endBy readForm ignored <* char ']')
 
 readForm :: Parser String MalExpr
-readForm = fix $ \_ -> ignored *> (readMacro <|> readList <|> readVector <|> readAtom)
+readForm =
+  fix
+    $ \_ ->
+        ignored
+          *> ( readMacro
+                <|> readList
+                <|> readVector
+                <|> readHashMap
+                <|> readAtom
+            )
 
 -- FIXME: 何もやってない感がすごい
 readStr :: String -> Either String MalExpr

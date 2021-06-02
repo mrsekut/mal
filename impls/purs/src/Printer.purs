@@ -1,7 +1,9 @@
 module Printer where
 
 import Prelude
+import Data.Array (intersperse)
 import Data.List (List(..), concat, concatMap, fold, foldr, fromFoldable, (:))
+import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits (toCharArray)
 import Effect.Aff (Aff)
 import Types (MalExpr(..))
@@ -27,6 +29,12 @@ printList (x : xs) = printStr x <> " " <> printList xs
 -- stringToCharList :: String -> List Char
 -- stringToCharList = fromFoldable <<< toCharArray
 -- b str = foldr (<>) "" $ map unescape (stringToCharList str)
+oo :: List { key :: String, val :: MalExpr } -> String
+oo ls = foldr (<>) "" $ map f ls
+
+f :: { key :: String, val :: MalExpr } -> String
+f s = "\"" <> s.key <> "\"" <> " " <> printStr s.val
+
 printStr :: MalExpr -> String
 printStr (MalString str) = "\"" <> str <> "\""
 
@@ -45,11 +53,13 @@ printStr (MalList items) = "(" <> printList items <> ")"
 
 printStr (MalVector items) = "[" <> printList items <> "]"
 
--- printStr (MalList (Vect True) items) = format <$> printList pr " " items
+printStr (MalHashMap ls) = format $ oo ls
+  where
+  format x = "{" <> x <> "}"
+
+-- printStr (MalHashMap _ m) = format <$> printList " " (_flatTuples $ assocs m)
 --   where
---   format x = "[" ++ x ++ "]"
--- printStr pr (MalHashMap _ m) = format <$> printList pr " " (_flatTuples $ Map.assocs m) where
---     format x = "{" ++ x ++ "}"
+--   format x = "{" <> x <> "}"
 -- printStr pr (MalAtom _ r) = format  <$> (printStr pr =<< readIORef r) where
 --     format x = "(atom " ++ x ++ ")"
 -- printStr _ (MalFunction {f_ast=Nil}) = pure "#<function>"
@@ -57,3 +67,13 @@ printStr (MalVector items) = "[" <> printList items <> "]"
 --     format x = "(fn* " ++ show p ++ " -> " ++ x ++ ")"
 -- printStr _ (MalFunction {f_ast=a, f_params=p, macro=True})  = format <$> printStr True a where
 --     format x = "(macro* " ++ show p ++ " -> " ++ x ++ ")"
+keyValuePairs :: List MalExpr -> Maybe (List { key :: String, val :: MalExpr })
+keyValuePairs Nil = pure Nil
+
+keyValuePairs (MalString k : v : kvs) = do
+  let
+    a = { key: k, val: v }
+  b <- keyValuePairs kvs
+  pure $ a : b
+
+keyValuePairs _ = Nothing
