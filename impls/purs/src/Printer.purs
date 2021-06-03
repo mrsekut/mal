@@ -6,35 +6,11 @@ import Data.List (List(..), (:))
 import Data.Map (toUnfoldable)
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
-import Types (Key(..), MalExpr(..))
-
-printList :: List MalExpr -> String
-printList Nil = ""
-printList (x : Nil) = printStr x
-printList (x : xs) = printStr x <> " " <> printList xs
-
--- _flatTuples :: [(String, MalVal)] -> [MalVal]
--- _flatTuples ((a,b):xs) = MalString a : b : _flatTuples xs
--- _flatTuples _          = []
--- unescape :: Char -> String
--- unescape '\n' = "\\n"
--- unescape '\\' = "\\\\"
--- unescape '"' = "\\\""
--- unescape c = show c
--- stringToCharList :: String -> List Char
--- stringToCharList = fromFoldable <<< toCharArray
--- b str = foldr (<>) "" $ map unescape (stringToCharList str)
-
-flatTuples :: List (Tuple Key MalExpr) -> List MalExpr
-flatTuples ((Tuple (StringKey a) b):xs) = MalString a : b : flatTuples xs
-flatTuples ((Tuple (KeywordKey a) b):xs) = MalKeyword a : b : flatTuples xs
-flatTuples _                = Nil
-
+import Types (Key(..), MalExpr(..), flatTuples)
 
 
 printStr :: MalExpr -> String
 printStr (MalString str) = "\"" <> str <> "\""
--- printStr (MalString str) = "\"" <> b str <> "\""
 printStr (MalInt num)       = show num
 printStr (MalKeyword k)     = k
 printStr (MalBoolean true)  = "true"
@@ -43,29 +19,15 @@ printStr MalNil             = "nil"
 printStr (MalSymbol name)   = name
 printStr (MalList items)    = "(" <> printList items <> ")"
 printStr (MalVector items)  = "[" <> printList items <> "]"
-printStr (MalHashMap ls)    = format $ printList $ flatTuples $ toUnfoldable ls
-  where
-  format x = "{" <> x <> "}"
+printStr (MalHashMap ms)    = "{" <> (ms # toUnfoldable # flatTuples # printList) <> "}"
 
--- printStr (MalHashMap _ m) = format <$> printList " " (_flatTuples $ assocs m)
---   where
---   format x = "{" <> x <> "}"
--- printStr pr (MalAtom _ r) = format  <$> (printStr pr =<< readIORef r) where
---     format x = "(atom " ++ x ++ ")"
--- printStr _ (MalFunction {f_ast=Nil}) = pure "#<function>"
--- printStr _ (MalFunction {f_ast=a, f_params=p, macro=False}) = format <$> printStr True a where
---     format x = "(fn* " ++ show p ++ " -> " ++ x ++ ")"
--- printStr _ (MalFunction {f_ast=a, f_params=p, macro=True})  = format <$> printStr True a where
---     format x = "(macro* " ++ show p ++ " -> " ++ x ++ ")"
---
---
---
+printList :: List MalExpr -> String
+printList Nil       = ""
+printList (x : Nil) = printStr x
+printList (x : xs)  = printStr x <> " " <> printList xs
+
 keyValuePairs :: List MalExpr -> Maybe (List (Tuple Key MalExpr))
-keyValuePairs Nil = pure Nil
-keyValuePairs (MalString k : v : kvs) = do
-  r <- keyValuePairs kvs
-  pure $ (Tuple (StringKey k) v) : r
-keyValuePairs (MalKeyword k : v : kvs) = do
-  r <- keyValuePairs kvs
-  pure $ (Tuple (KeywordKey k) v) : r
-keyValuePairs _ = Nothing
+keyValuePairs Nil                       = pure Nil
+keyValuePairs (MalString k : v : kvs)   = (:) (Tuple (StringKey k) v) <$> keyValuePairs kvs
+keyValuePairs (MalKeyword k : v : kvs)  = (:) (Tuple (KeywordKey k) v) <$> keyValuePairs kvs
+keyValuePairs _                         = Nothing

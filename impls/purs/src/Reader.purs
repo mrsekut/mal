@@ -4,22 +4,21 @@ import Prelude
 
 import Control.Alt ((<|>))
 import Control.Lazy (fix)
-import Data.Array (fromFoldable)
 import Data.Either (Either(..))
 import Data.Int (fromString)
 import Data.List (List(..), concat, many, (:))
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Data.Tuple (Tuple)
 import Printer (keyValuePairs)
 import Text.Parsing.Parser (Parser, runParser)
 import Text.Parsing.Parser.Combinators (endBy, skipMany, skipMany1, try)
 import Text.Parsing.Parser.String (char, noneOf, oneOf, string)
 import Text.Parsing.Parser.Token (digit, letter)
-import Types (Key, MalExpr(..), listToMap, toList)
+import Types (Key, MalExpr(..), charListToString, listToMap, toList)
+
 
 spaces :: Parser String Unit
-spaces = skipMany1 $ oneOf' ", \n"
+spaces = skipMany1 $ oneOf [',', ' ', '\n']
 
 comment :: Parser String Unit
 comment = char ';' *> (skipMany $ noneOf [ '\r', '\n' ])
@@ -28,13 +27,7 @@ ignored :: Parser String Unit
 ignored = skipMany $ spaces <|> comment
 
 symbol :: Parser String Char
-symbol = oneOf' "!#$%&|*+-/:<=>?@^_~"
-
-readNumber :: Parser String MalExpr
-readNumber = MalInt <$> nat
-
-readNegativeNumber :: Parser String MalExpr
-readNegativeNumber = MalInt <<< negate <$> (char '-' *> nat)
+symbol = oneOf ['!', '#', '$', '%', '&', '|', '*', '+', '-', '/', ':', '<', '=', '>', '?', '@', '^', '_', '~']
 
 nat :: Parser String Int
 nat = do
@@ -53,63 +46,76 @@ nonEscape = do
   n <- noneOf [ '\"', '\\' ]
   pure $ n : Nil
 
--- escaped :: Parser String Char
--- escaped = f <$> (char '\\' *> oneOf [ '\\', '\"', 'n' ])
---   where
---   f 'n' = '\n'
---   f x = x
+
+----------------------------------------------------------------
+-- reader atom
+----------------------------------------------------------------
+
+readNumber :: Parser String MalExpr
+readNumber = MalInt <$> nat
+
+readNegativeNumber :: Parser String MalExpr
+readNegativeNumber = MalInt <<< negate <$> (char '-' *> nat)
 
 readString :: Parser String MalExpr
-readString =
-  MalString
-    <<< charListToString
-    <$> (char '"' *> (concat <$> many (escape <|> nonEscape)) <* char '"')
+readString = MalString
+         <<< charListToString
+         <$> (char '"' *> (concat <$> many (escape <|> nonEscape)) <* char '"')
 
--- readString =
---   MalString
---     <<< charListToString
---     <$> (char '"' *> many (escaped <|> noneOf [ '\\', '\"' ]) <* char '"')
+readKeyword :: Parser String MalExpr
+readKeyword =
+  MalKeyword <$> charListToString
+             <$> ((:) ':')
+             <$> (char ':' *> many (letter <|> digit <|> symbol))
 
--- FIXME: name
 readSymbol :: Parser String MalExpr
 readSymbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
   where
   f first rest = g $ charListToString (first : rest)
-  g "true" = MalBoolean true
+  g "true"  = MalBoolean true
   g "false" = MalBoolean false
-  g "nil" = MalNil
-  g s = MalSymbol s
-
-readKeyword :: Parser String MalExpr
-readKeyword =
-  MalKeyword
-    <$> charListToString
-    <$> ((:) ':')
-    <$> (char ':' *> many (letter <|> digit <|> symbol))
+  g "nil"   = MalNil
+  g s       = MalSymbol s
 
 readAtom :: Parser String MalExpr
-readAtom =
-  readNumber
-    <|> try readNegativeNumber
-    <|> readString
-    <|> readKeyword
-    <|> readSymbol
+readAtom = readNumber
+       <|> try readNegativeNumber
+       <|> readString
+       <|> readKeyword
+       <|> readSymbol
 
--- FIXME: sepEndBy ?
+
+
+----------------------------------------------------------------
+
 readList :: Parser String MalExpr
 readList = fix $ \_ -> MalList <$> (char '(' *> ignored *> (endBy readForm ignored) <* char ')')
 
+
+
+----------------------------------------------------------------
+
+readVector :: Parser String MalExpr
+readVector = fix $ \_ -> MalVector <$> (char '[' *> ignored *> endBy readForm ignored <* char ']')
+
+
+
+----------------------------------------------------------------
+
 readHashMap :: Parser String MalExpr
 readHashMap = do
-  m <- mmm
-  pure $ g $ keyValuePairs m
+  es <- fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}'
+  pure $ g $ keyValuePairs es
   where
   g :: Maybe (List (Tuple Key MalExpr)) -> MalExpr
   g (Just ts) = MalHashMap $ listToMap ts
   g Nothing   = MalString "hash map error" -- FIXME: error
 
-  mmm :: Parser String (List MalExpr)
-  mmm = fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}'
+
+
+----------------------------------------------------------------
+-- reader macros
+----------------------------------------------------------------
 
 addPrefix :: String -> MalExpr -> MalExpr
 addPrefix s x = toList $ MalSymbol s : x : Nil
@@ -143,8 +149,9 @@ readMacro =
           <|> readDeref
           <|> readWithMeta
 
-readVector :: Parser String MalExpr
-readVector = fix $ \_ -> MalVector <$> (char '[' *> ignored *> endBy readForm ignored <* char ']')
+
+
+----------------------------------------------------------------
 
 readForm :: Parser String MalExpr
 readForm =
@@ -156,23 +163,13 @@ readForm =
             <|> readAtom
              )
 
+
+
+----------------------------------------------------------------
+
+
 -- FIXME: 何もやってない感がすごい
 readStr :: String -> Either String MalExpr
 readStr str = case runParser str readForm of
-  Left err -> Left $ show err
+  Left err  -> Left $ show err
   Right val -> Right val
-
-----------------------------------------------------------------
--- Utils
-----------------------------------------------------------------
--- DEPRECATED:
-oneOf' :: String -> Parser String Char
-oneOf' = oneOf <<< toCharArray
-
--- DEPRECATED:
-noneOf' :: String -> Parser String Char
-noneOf' = noneOf <<< toCharArray
-
--- FIXME: move
-charListToString :: List Char -> String
-charListToString = fromCharArray <<< fromFoldable

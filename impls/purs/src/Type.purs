@@ -1,11 +1,14 @@
 module Types where
 
-import Data.List (List)
+import Prelude
+
+import Data.Array as Array
+import Data.List (List(..), (:))
 import Data.Map (Map)
-import Data.Map.Internal (fromFoldable)
-import Data.Tuple (Tuple)
-import Data.Ord (class Ord)
-import Data.Eq (class Eq)
+import Data.Map.Internal as Map
+import Data.String.CodeUnits (fromCharArray)
+import Data.Tuple (Tuple(..))
+
 
 data MalExpr
   = MalNil
@@ -19,26 +22,29 @@ data MalExpr
   | MalHashMap (Map Key MalExpr)
 
 
-data Key = StringKey String | KeywordKey String
-
+data Key = StringKey String
+         | KeywordKey String
 derive instance eqKey :: Eq Key
 derive instance ordKey :: Ord Key
 
--- instance ordKey :: Ord Key  where
---   show true = "true"
---   show false = "false"
-
--- | MalFunction MalFunction
--- | MalApply ApplyRec
--- | MalAtom Int
---
 
 
--- |
--- | Utils
--- |
+
+----------------------------------------------------------------
+-- Utils
+----------------------------------------------------------------
+
+
 toList :: List MalExpr -> MalExpr
 toList = MalList
 
 listToMap :: List (Tuple Key MalExpr) -> Map Key MalExpr
-listToMap = fromFoldable
+listToMap = Map.fromFoldable
+
+charListToString :: List Char -> String
+charListToString = fromCharArray <<< Array.fromFoldable
+
+flatTuples :: List (Tuple Key MalExpr) -> List MalExpr
+flatTuples ((Tuple (StringKey a) b) : xs)   = MalString a : b : flatTuples xs
+flatTuples ((Tuple (KeywordKey a) b) : xs)  = MalKeyword a : b : flatTuples xs
+flatTuples _                                = Nil
