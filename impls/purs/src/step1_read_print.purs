@@ -12,9 +12,34 @@ import Printer (printStr)
 import Readline (readLine)
 import Types (MalExpr)
 
-main :: Effect Unit
-main = do
-  launchAff_ loop
+
+-- READ
+
+read :: String -> Either String MalExpr
+read = readStr
+
+
+
+-- EVAL
+
+eval :: String -> String
+eval s = s
+
+
+
+-- PRINT
+
+print :: String -> String
+print s = s
+
+
+
+-- REPL
+
+rep :: String -> Effect Unit
+rep str = case read str of
+  Left _ -> error "EOF"
+  Right s -> log $ printStr s # eval # print
 
 loop :: Aff Unit
 loop = do
@@ -26,16 +51,10 @@ loop = do
       liftEffect $ rep line
       loop
 
-read :: String -> Either String MalExpr
-read = readStr
 
-eval :: String -> String
-eval s = s
 
-print :: String -> String
-print s = s
+--
 
-rep :: String -> Effect Unit
-rep str = case read str of
-  Left _ -> error "EOF"
-  Right s -> log $ printStr s # eval # print
+main :: Effect Unit
+main = do
+  launchAff_ loop
