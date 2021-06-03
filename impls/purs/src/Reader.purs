@@ -129,10 +129,11 @@ readUnquote = fix $ \_ -> addPrefix "unquote" <$> (char '~' *> readForm)
 readDeref :: Parser String MalExpr
 readDeref = fix $ \_ -> addPrefix "deref" <$> (char '@' *> readForm)
 
--- readWithMeta :: Parser String MalExpr
--- readWithMeta = f <$> (char '^' *> readForm) <*> readForm
---   where
---   f m x = toList $ MalSymbol "with-meta" : x : m : Nil
+readWithMeta :: Parser String MalExpr
+readWithMeta = f <$> (char '^' *> readForm) <*> readForm
+  where
+  f m x = toList $ MalSymbol "with-meta" : x : m : Nil
+
 readMacro :: Parser String MalExpr
 readMacro =
   fix $ \_ -> readQuote
@@ -140,8 +141,8 @@ readMacro =
           <|> try readSpliceUnquote
           <|> readUnquote
           <|> readDeref
+          <|> readWithMeta
 
--- read_macro = readQuote <|> readQuasiquote <|> try readSpliceUnquote <|> readUnquote <|> readDeref <|> readWithMeta
 readVector :: Parser String MalExpr
 readVector = fix $ \_ -> MalVector <$> (char '[' *> ignored *> endBy readForm ignored <* char ']')
 
