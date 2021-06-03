@@ -8,10 +8,6 @@ import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Types (Key(..), MalExpr(..))
 
--- import qualified Data.Map as Map
--- import Data.IORef (readIORef)
--- import Types
-
 printList :: List MalExpr -> String
 printList Nil = ""
 printList (x : Nil) = printStr x

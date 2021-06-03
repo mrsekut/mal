@@ -15,11 +15,12 @@ You can edit this file as you like.
   , "lists"
   , "maybe"
   , "node-readline"
+  , "ordered-collections"
   , "parsing"
   , "prelude"
   , "psci-support"
   , "strings"
-  , "transformers"
+  , "tuples"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
