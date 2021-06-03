@@ -117,36 +117,25 @@ readHashMap = do
 -- reader macros
 ----------------------------------------------------------------
 
-addPrefix :: String -> MalExpr -> MalExpr
-addPrefix s x = toList $ MalSymbol s : x : Nil
-
-readQuote :: Parser String MalExpr
-readQuote = fix $ \_ -> addPrefix "quote" <$> (char '\'' *> readForm)
-
-readQuasiquote :: Parser String MalExpr
-readQuasiquote = fix $ \_ -> addPrefix "quasiquote" <$> (char '`' *> readForm)
-
-readSpliceUnquote :: Parser String MalExpr
-readSpliceUnquote = fix $ \_ -> addPrefix "splice-unquote" <$> (string "~@" *> readForm)
-
-readUnquote :: Parser String MalExpr
-readUnquote = fix $ \_ -> addPrefix "unquote" <$> (char '~' *> readForm)
-
-readDeref :: Parser String MalExpr
-readDeref = fix $ \_ -> addPrefix "deref" <$> (char '@' *> readForm)
+macro :: String -> String -> Parser String MalExpr
+macro tok sym = addPrefix sym <$> (string tok *> readForm)
+  where
+  addPrefix :: String -> MalExpr -> MalExpr
+  addPrefix s x = toList $ MalSymbol s : x : Nil
 
 readWithMeta :: Parser String MalExpr
-readWithMeta = f <$> (char '^' *> readForm) <*> readForm
+readWithMeta = addPrefix <$> (char '^' *> readForm) <*> readForm
   where
-  f m x = toList $ MalSymbol "with-meta" : x : m : Nil
+  addPrefix :: MalExpr -> MalExpr -> MalExpr
+  addPrefix m x = toList $ MalSymbol "with-meta" : x : m : Nil
 
 readMacro :: Parser String MalExpr
 readMacro =
-  fix $ \_ -> readQuote
-          <|> readQuasiquote
-          <|> try readSpliceUnquote
-          <|> readUnquote
-          <|> readDeref
+  fix $ \_ -> macro "\'" "quote"
+          <|> macro "`" "quasiquote"
+          <|> try (macro "~@" "splice-unquote")
+          <|> macro "~" "unquote"
+          <|> macro "@" "deref"
           <|> readWithMeta
 
 
