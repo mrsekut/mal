@@ -89,14 +89,16 @@ readAtom = readNumber
 ----------------------------------------------------------------
 
 readList :: Parser String MalExpr
-readList = fix $ \_ -> MalList <$> (char '(' *> ignored *> (endBy readForm ignored) <* char ')')
+readList = fix $ \_ ->
+  MalList <$> (char '(' *> ignored *> endBy readForm ignored <* char ')')
 
 
 
 ----------------------------------------------------------------
 
 readVector :: Parser String MalExpr
-readVector = fix $ \_ -> MalVector <$> (char '[' *> ignored *> endBy readForm ignored <* char ']')
+readVector = fix $ \_ ->
+  MalVector <$> (char '[' *> ignored *> endBy readForm ignored <* char ']')
 
 
 
