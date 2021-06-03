@@ -1,21 +1,22 @@
 module Mal.Reader where
 
 import Prelude
+
 import Control.Alt ((<|>))
 import Control.Lazy (fix)
 import Data.Array (fromFoldable)
 import Data.Either (Either(..))
 import Data.Int (fromString)
 import Data.List (List(..), concat, many, (:))
-import Data.Map (union)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String.CodeUnits (fromCharArray, toCharArray)
+import Data.Tuple (Tuple)
 import Printer (keyValuePairs)
 import Text.Parsing.Parser (Parser, runParser)
-import Text.Parsing.Parser.Combinators (endBy, sepEndBy, skipMany, skipMany1, try)
+import Text.Parsing.Parser.Combinators (endBy, skipMany, skipMany1, try)
 import Text.Parsing.Parser.String (char, noneOf, oneOf, string)
 import Text.Parsing.Parser.Token (digit, letter)
-import Types (MalExpr(..), toList)
+import Types (Key, MalExpr(..), listToMap, toList)
 
 spaces :: Parser String Unit
 spaces = skipMany1 $ oneOf' ", \n"
@@ -57,6 +58,7 @@ nonEscape = do
 --   where
 --   f 'n' = '\n'
 --   f x = x
+
 readString :: Parser String MalExpr
 readString =
   MalString
@@ -67,26 +69,22 @@ readString =
 --   MalString
 --     <<< charListToString
 --     <$> (char '"' *> many (escaped <|> noneOf [ '\\', '\"' ]) <* char '"')
+
 -- FIXME: name
 readSymbol :: Parser String MalExpr
 readSymbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
   where
   f first rest = g $ charListToString (first : rest)
-
   g "true" = MalBoolean true
-
   g "false" = MalBoolean false
-
   g "nil" = MalNil
-
   g s = MalSymbol s
 
--- FIXME: ?
 readKeyword :: Parser String MalExpr
 readKeyword =
-  MalString
+  MalKeyword
     <$> charListToString
-    <$> ((:) '\x029')
+    <$> ((:) ':')
     <$> (char ':' *> many (letter <|> digit <|> symbol))
 
 readAtom :: Parser String MalExpr
@@ -94,26 +92,24 @@ readAtom =
   readNumber
     <|> try readNegativeNumber
     <|> readString
-    -- <|> readKeyword
-    
+    <|> readKeyword
     <|> readSymbol
 
 -- FIXME: sepEndBy ?
 readList :: Parser String MalExpr
 readList = fix $ \_ -> MalList <$> (char '(' *> ignored *> (endBy readForm ignored) <* char ')')
 
-mmm :: Parser String (List MalExpr)
-mmm = fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}'
-
 readHashMap :: Parser String MalExpr
 readHashMap = do
   m <- mmm
   pure $ g $ keyValuePairs m
   where
-  g :: Maybe (List { key :: String, val :: MalExpr }) -> MalExpr
-  g (Just pairs) = MalHashMap pairs
+  g :: Maybe (List (Tuple Key MalExpr)) -> MalExpr
+  g (Just ts) = MalHashMap $ listToMap ts
+  g Nothing   = MalString "hash map error" -- FIXME: error
 
-  g Nothing = MalString "hash map error" -- FIXME: error
+  mmm :: Parser String (List MalExpr)
+  mmm = fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}'
 
 addPrefix :: String -> MalExpr -> MalExpr
 addPrefix s x = toList $ MalSymbol s : x : Nil
@@ -139,9 +135,7 @@ readDeref = fix $ \_ -> addPrefix "deref" <$> (char '@' *> readForm)
 --   f m x = toList $ MalSymbol "with-meta" : x : m : Nil
 readMacro :: Parser String MalExpr
 readMacro =
-  fix
-    $ \_ ->
-        readQuote
+  fix $ \_ -> readQuote
           <|> readQuasiquote
           <|> try readSpliceUnquote
           <|> readUnquote
@@ -153,15 +147,13 @@ readVector = fix $ \_ -> MalVector <$> (char '[' *> ignored *> endBy readForm ig
 
 readForm :: Parser String MalExpr
 readForm =
-  fix
-    $ \_ ->
-        ignored
+  fix $ \_ -> ignored
           *> ( readMacro
-                <|> readList
-                <|> readVector
-                <|> readHashMap
-                <|> readAtom
-            )
+            <|> readList
+            <|> readVector
+            <|> readHashMap
+            <|> readAtom
+             )
 
 -- FIXME: 何もやってない感がすごい
 readStr :: String -> Either String MalExpr
