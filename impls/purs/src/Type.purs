@@ -20,6 +20,7 @@ data MalExpr
   | MalList (List MalExpr)
   | MalVector (List MalExpr)
   | MalHashMap (Map Key MalExpr)
+  | MalFunction { fn :: MalFn }
 
 
 data Key = StringKey String
@@ -28,6 +29,7 @@ derive instance eqKey :: Eq Key
 derive instance ordKey :: Ord Key
 
 
+type MalFn = List MalExpr -> MalExpr
 
 
 ----------------------------------------------------------------

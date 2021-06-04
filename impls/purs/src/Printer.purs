@@ -17,9 +17,12 @@ printStr (MalBoolean true)  = "true"
 printStr (MalBoolean false) = "false"
 printStr MalNil             = "nil"
 printStr (MalSymbol name)   = name
+printStr (MalList Nil)      = "(" <> ")"
 printStr (MalList items)    = "(" <> printList items <> ")"
+printStr (MalVector Nil)    = "[" <> "]"
 printStr (MalVector items)  = "[" <> printList items <> "]"
 printStr (MalHashMap ms)    = "{" <> (ms # toUnfoldable # flatTuples # printList) <> "}"
+printStr (MalFunction _)    = "#<function>"
 
 printList :: List MalExpr -> String
 printList Nil       = ""

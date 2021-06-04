@@ -32,9 +32,6 @@
 ;;
 ;; -------- Deferrable Functionality --------
 
-;; Testing evaluation within collection literals
-[1 2 (+ 1 2)]
-;=>[1 2 3]
 
 {"a" (+ 7 8)}
 ;=>{"a" 15}
@@ -47,3 +44,6 @@
 ;=>[]
 {}
 ;=>{}
+
+[1 2 (+ 1 2)]
+;=>[1 2 3]
