@@ -8,6 +8,7 @@ import Data.Map (Map)
 import Data.Map.Internal as Map
 import Data.String.CodeUnits (fromCharArray)
 import Data.Tuple (Tuple(..))
+import Effect (Effect)
 
 
 data MalExpr
@@ -29,7 +30,7 @@ derive instance eqKey :: Eq Key
 derive instance ordKey :: Ord Key
 
 
-type MalFn = List MalExpr -> MalExpr
+type MalFn = List MalExpr -> Effect MalExpr
 
 
 ----------------------------------------------------------------
