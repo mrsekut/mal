@@ -1,4 +1,4 @@
-module Main2 where
+module Main where
 
 import Prelude
 
@@ -20,10 +20,12 @@ import Readline (readLine)
 import Types (MalExpr(..), MalFn)
 
 
+
 -- READ
 
 read :: String -> Either String MalExpr
 read = readStr
+
 
 
 -- EVAL

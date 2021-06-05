@@ -10,19 +10,16 @@ import Types (Key(..), MalExpr(..), flatTuples)
 
 
 printStr :: MalExpr -> String
-printStr (MalString str) = "\"" <> str <> "\""
-printStr (MalInt num)       = show num
-printStr (MalKeyword k)     = k
-printStr (MalBoolean true)  = "true"
-printStr (MalBoolean false) = "false"
-printStr MalNil             = "nil"
-printStr (MalSymbol name)   = name
-printStr (MalList Nil)      = "(" <> ")"
-printStr (MalList items)    = "(" <> printList items <> ")"
-printStr (MalVector Nil)    = "[" <> "]"
-printStr (MalVector items)  = "[" <> printList items <> "]"
-printStr (MalHashMap ms)    = "{" <> (ms # toUnfoldable # flatTuples # printList) <> "}"
-printStr (MalFunction _)    = "#<function>"
+printStr MalNil           = "nil"
+printStr (MalBoolean b)   = show b
+printStr (MalInt n)       = show n
+printStr (MalString str)  = "\"" <> str <> "\""
+printStr (MalKeyword key) = key
+printStr (MalSymbol name) = name
+printStr (MalList xs)     = "(" <> printList xs <> ")"
+printStr (MalVector vs)   = "[" <> printList vs <> "]"
+printStr (MalHashMap hm)  = "{" <> (hm # toUnfoldable # flatTuples # printList) <> "}"
+printStr (MalFunction _)  = "#<function>"
 
 printList :: List MalExpr -> String
 printList Nil       = ""

@@ -106,8 +106,8 @@ readVector = fix $ \_ ->
 
 readHashMap :: Parser String MalExpr
 readHashMap = do
-  es <- fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}'
-  pure $ g $ keyValuePairs es
+  g <$> keyValuePairs
+    <$> (fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}')
   where
   g :: Maybe (List (Tuple Key MalExpr)) -> MalExpr
   g (Just ts) = MalHashMap $ listToMap ts
@@ -148,10 +148,10 @@ readForm :: Parser String MalExpr
 readForm =
   fix $ \_ -> ignored
           *> ( readMacro
-            <|> readList
-            <|> readVector
-            <|> readHashMap
-            <|> readAtom
+           <|> readList
+           <|> readVector
+           <|> readHashMap
+           <|> readAtom
              )
 
 
