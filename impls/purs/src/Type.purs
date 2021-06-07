@@ -41,11 +41,14 @@ type MalFn = List MalExpr -> Effect MalExpr
 toList :: List MalExpr -> MalExpr
 toList = MalList
 
+
 listToMap :: List (Tuple Key MalExpr) -> Map Key MalExpr
 listToMap = Map.fromFoldable
 
+
 charListToString :: List Char -> String
 charListToString = fromCharArray <<< Array.fromFoldable
+
 
 flatTuples :: List (Tuple Key MalExpr) -> List MalExpr
 flatTuples ((Tuple (StringKey a) b) : xs)   = MalString a : b : flatTuples xs

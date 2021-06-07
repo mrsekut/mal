@@ -20,7 +20,9 @@ You can edit this file as you like.
   , "parsing"
   , "prelude"
   , "psci-support"
+  , "refs"
   , "strings"
+  , "transformers"
   , "tuples"
   ]
 , packages = ./packages.dhall
