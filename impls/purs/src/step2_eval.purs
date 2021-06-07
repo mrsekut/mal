@@ -34,7 +34,7 @@ eval env (MalList ast)    = do
   es <- traverse (evalAst env) ast
   case es of
     (MalFunction {fn:f}: args) -> f args
-    _                          -> throw "invalid function"
+    _                          -> pure $ MalList es
 eval env ast              = evalAst env ast
 
 
