@@ -2,23 +2,20 @@ module Main0 where
 
 import Prelude
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
-import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Readline (readLine)
 
 main :: Effect Unit
-main = do
-  launchAff_ loop
+main = loop
 
-loop :: Aff Unit
+loop :: Effect Unit
 loop = do
-  line <- readLine "user> "
+  line <- readLine
   case line of
     ":q" -> pure unit
     ":Q" -> pure unit
     _ -> do
-      liftEffect $ log line
+      log line
       loop
 
 read :: String -> String

@@ -10,8 +10,6 @@ import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
-import Effect.Class (liftEffect)
 import Effect.Console (error, log)
 import Effect.Exception (throw, try)
 import Mal.Reader (readStr)
@@ -88,14 +86,14 @@ rep str = case read str of
       Right exp -> log $ print $ printStr $ exp
       Left err  -> error $ show err
 
-loop :: Aff Unit
+loop :: Effect Unit
 loop = do
-  line <- readLine "user> "
+  line <- readLine
   case line of
     ":q" -> pure unit
     ":Q" -> pure unit
     _    -> do
-      liftEffect $ rep line
+      rep line
       loop
 
 
@@ -103,5 +101,4 @@ loop = do
 --
 
 main :: Effect Unit
-main = do
-  launchAff_ loop
+main = loop

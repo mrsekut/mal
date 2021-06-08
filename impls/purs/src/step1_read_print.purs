@@ -4,8 +4,6 @@ import Prelude
 
 import Data.Either (Either(..))
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
-import Effect.Class (liftEffect)
 import Effect.Console (error, log)
 import Mal.Reader (readStr)
 import Printer (printStr)
@@ -41,14 +39,14 @@ rep str = case read str of
   Left _ -> error "EOF"
   Right s -> log $ printStr s # eval # print
 
-loop :: Aff Unit
+loop :: Effect Unit
 loop = do
-  line <- readLine "user> "
+  line <- readLine
   case line of
     ":q" -> pure unit
     ":Q" -> pure unit
     _    -> do
-      liftEffect $ rep line
+      rep line
       loop
 
 
@@ -56,5 +54,4 @@ loop = do
 --
 
 main :: Effect Unit
-main = do
-  launchAff_ loop
+main = loop

@@ -2,15 +2,17 @@ module Main where
 
 import Prelude
 
+import Control.Monad.Reader.Class (ask)
 import Data.Either (Either(..))
 import Data.List (List(..), (:))
+import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
-import Effect.Console (error, log)
-import Effect.Exception (throw, try)
-import Env (MalEnv)
+import Effect.Console (log)
+import Effect.Exception (throw)
+import Effect.Ref as Ref
+import Env (MalEnv, get)
 import Env as Env
 import Mal.Reader (readStr)
 import Printer (printStr)
@@ -28,30 +30,42 @@ read = readStr
 
 -- EVAL
 
--- FIXME: error message
 -- FIXME: let*
 eval :: MalExpr -> MalEnv MalExpr
 eval ast@(MalList Nil)  = pure ast
 eval (MalList ast)    = do
-  es <- traverse evalAst ast        -- es::List MalExpr
-  case es of
-    (MalFunction {fn:f}: args) -> liftEffect $ f args
-    -- ((MalSymbol "def!"): Nil) -> liftEffect $ throw "invalid function"
-    -- ((MalSymbol "def!"): (MalSymbol a) : e : Nil) -> do
-    --   evd <- evalAst e
-    --   Env.set a evd
-    --   pure evd
+  case ast of
+    ((MalSymbol "def!") : _) -> evalDef ast
     -- ((MalSymbol "let*"): Nil) -> liftEffect $ throw "invalid function"
-    _                          -> pure $ MalList es
+    _                          -> do
+      es <- traverse evalAst ast
+      case es of
+        (MalFunction {fn:f} : args) -> liftEffect $ f args
+        _ -> liftEffect $ throw $ "no reachable ??"
 eval ast              = evalAst ast
 
 
 evalAst :: MalExpr -> MalEnv MalExpr
-evalAst (MalSymbol s)   = Env.get s
+evalAst (MalSymbol s)   = do
+  ref <- ask
+  es <- liftEffect $ Ref.read ref
+  case get s es of
+    Just k -> pure k
+    Nothing -> liftEffect $ throw $ s <> " is not found"
 evalAst ast@(MalList _) = eval ast
 evalAst (MalVector es)  = MalVector <$> (traverse eval es)
 evalAst (MalHashMap es) = MalHashMap <$> (traverse eval es)
 evalAst ast             = pure ast
+
+
+-- FIXME: 関数わける必要ないかも
+evalDef :: List MalExpr -> MalEnv MalExpr
+evalDef ((MalSymbol "def!") : Nil) = liftEffect $ throw "invalid def!"
+evalDef ((MalSymbol "def!") : (MalSymbol v) : e : Nil) = do
+  evd <- evalAst e
+  Env.set v evd
+  pure evd
+evalDef _ = liftEffect $ throw "no reachable"
 
 
 
@@ -65,27 +79,28 @@ print = printStr
 -- REPL
 
 rep :: String -> MalEnv String
-rep str = do
-  setArithOp
-  case read str of
-    Left _ -> liftEffect $ throw "EOF"
-    Right ast -> do
-      result <- eval ast
-      pure $ print result
+rep str = case read str of
+  Left _ -> liftEffect $ throw "EOF"
+  Right ast -> do
+    result <- eval ast
+    pure $ print result
 
-loop :: Aff Unit
+
+loop :: MalEnv Unit
 loop = do
-  line <- readLine "user> "
+  line <- liftEffect readLine
   case line of
     ":q" -> pure unit
-    ":Q" -> pure unit
     _    -> do
-      ref <- liftEffect Env.make
-      result <- liftEffect $ try $ Env.runMalEnv (rep line) ref
-      case result of
-        Right exp -> liftEffect $ log exp
-        Left err  -> liftEffect $ error $ show err
+      -- FIXME: try
+      result <- rep line
+      -- result <- try $ rep line
+      -- case result of
+      --   Right exp -> liftEffect $ log exp
+      --   Left err  -> liftEffect $ error $ show err
+      liftEffect $ log result
       loop
+
 
 setArithOp :: MalEnv Unit
 setArithOp = do
@@ -93,6 +108,7 @@ setArithOp = do
   Env.set "-" $ fn (-)
   Env.set "*" $ fn (*)
   Env.set "/" $ fn (/)
+
 
 fn :: (Int -> Int -> Int) -> MalExpr
 fn op = MalFunction $ { fn : g op }
@@ -106,5 +122,8 @@ fn op = MalFunction $ { fn : g op }
 --
 
 main :: Effect Unit
-main = launchAff_ loop
-
+main = do
+  ref <- liftEffect Env.make
+  flip Env.runMalEnv ref do
+    setArithOp
+    loop

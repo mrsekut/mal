@@ -9,7 +9,6 @@ import Data.Map (Map, fromFoldable, insert, lookup, member)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Types (MalExpr)
 
@@ -25,17 +24,10 @@ derive newtype instance applicativeMalEnv :: Applicative MalEnv
 derive newtype instance monadEffectMalEnv :: MonadEffect MalEnv
 
 
-
-get :: String -> MalEnv MalExpr
-get k = do
-  ref <- ask
-  es <- liftEffect $ Ref.read ref
-  case find k es of
-    Just e  -> do
-      case lookup k e of
-        Just a -> pure a
-        Nothing -> liftEffect $ throw "no reachable"
-    Nothing -> liftEffect $ throw $ k <> " is not found"
+get :: String -> List Env -> Maybe MalExpr
+get k es = case find k es of
+    Just e  -> lookup k e
+    Nothing -> Nothing
 
 
 find :: String -> List Env -> Maybe Env
@@ -72,4 +64,3 @@ initEnv = fromFoldable Nil
 
 runMalEnv :: ∀ m. MalEnv m -> EnvRef -> Effect m
 runMalEnv (MalEnv m) = runReaderT m
-
