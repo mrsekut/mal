@@ -50,8 +50,11 @@ update _ _ Nil         = Nil
 update k e (env:outer) = (insert k e env):outer
 
 
--- new :: Env -> MalEnv MalExpr
--- new outer = do
+newEnv :: MalEnv Unit
+newEnv = do
+  ref <- ask
+  es <- liftEffect $ Ref.read ref
+  liftEffect $ Ref.write (initEnv:es) ref
 
 
 make :: Effect EnvRef

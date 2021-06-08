@@ -35,9 +35,9 @@ eval :: MalExpr -> MalEnv MalExpr
 eval ast@(MalList Nil)  = pure ast
 eval (MalList ast)    = do
   case ast of
-    ((MalSymbol "def!") : _) -> evalDef ast
-    -- ((MalSymbol "let*"): Nil) -> liftEffect $ throw "invalid function"
-    _                          -> do
+    ((MalSymbol "def!") : _)  -> evalDef ast
+    ((MalSymbol "let*"): _) -> evalLet ast
+    _                         -> do
       es <- traverse evalAst ast
       case es of
         (MalFunction {fn:f} : args) -> liftEffect $ f args
@@ -66,6 +66,26 @@ evalDef ((MalSymbol "def!") : (MalSymbol v) : e : Nil) = do
   Env.set v evd
   pure evd
 evalDef _ = liftEffect $ throw "no reachable"
+
+
+-- FIXME: 関数わける必要ないかも
+evalLet :: List MalExpr -> MalEnv MalExpr
+evalLet ((MalSymbol "let*") : Nil) = liftEffect $ throw "invalid let*"
+evalLet ((MalSymbol "let*") : (MalList ps) : e : Nil) = do
+  -- FIXME: 新しいEnvにセットしないといけない
+  Env.newEnv
+  _ <- letBind ps
+  eval e
+evalLet _ = liftEffect $ throw "no reachable"
+
+
+letBind :: List MalExpr -> MalEnv Unit
+letBind Nil = pure unit
+letBind (MalSymbol b : e : xs) = do
+  ev <- eval e
+  Env.set b ev
+  letBind xs
+letBind _ = liftEffect $ throw "invalid let* 3"
 
 
 
