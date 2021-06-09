@@ -108,7 +108,7 @@ rep str = case read str of
 
 loop :: MalEnv Unit
 loop = do
-  line <- liftEffect readLine
+  line <- liftEffect $ readLine "user> "
   case line of
     ":q" -> pure unit
     _    -> do

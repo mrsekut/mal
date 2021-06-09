@@ -88,7 +88,7 @@ rep str = case read str of
 
 loop :: Effect Unit
 loop = do
-  line <- readLine
+  line <- readLine "user> "
   case line of
     ":q" -> pure unit
     ":Q" -> pure unit
