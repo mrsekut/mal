@@ -2,6 +2,7 @@ module Main where
 
 import Prelude
 
+import Control.Monad.Error.Class (try)
 import Control.Monad.Reader.Class (ask)
 import Data.Either (Either(..))
 import Data.List (List(..), (:))
@@ -9,7 +10,7 @@ import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Effect.Console (log)
+import Effect.Console (error, log)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Env (MalEnv, get)
@@ -36,8 +37,8 @@ eval ast@(MalList Nil)  = pure ast
 eval (MalList ast)    = do
   case ast of
     ((MalSymbol "def!") : _)  -> evalDef ast
-    ((MalSymbol "let*"): _) -> evalLet ast
-    _                         -> do
+    ((MalSymbol "let*") : _)  -> evalLet ast
+    _ -> do
       es <- traverse evalAst ast
       case es of
         (MalFunction {fn:f} : args) -> liftEffect $ f args
@@ -51,10 +52,10 @@ evalAst (MalSymbol s)   = do
   es <- liftEffect $ Ref.read ref
   case get s es of
     Just k -> pure k
-    Nothing -> liftEffect $ throw $ s <> " is not found"
+    Nothing -> liftEffect $ throw $ "'" <> s <> "'" <> " not found"
 evalAst ast@(MalList _) = eval ast
-evalAst (MalVector es)  = MalVector <$> (traverse eval es)
-evalAst (MalHashMap es) = MalHashMap <$> (traverse eval es)
+evalAst (MalVector es)  = MalVector <$> traverse eval es
+evalAst (MalHashMap es) = MalHashMap <$> traverse eval es
 evalAst ast             = pure ast
 
 
@@ -65,7 +66,7 @@ evalDef ((MalSymbol "def!") : (MalSymbol v) : e : Nil) = do
   evd <- evalAst e
   Env.set v evd
   pure evd
-evalDef _ = liftEffect $ throw "no reachable"
+evalDef _ = liftEffect $ throw "no reachable aa"
 
 
 -- FIXME: 関数わける必要ないかも
@@ -75,17 +76,26 @@ evalLet ((MalSymbol "let*") : (MalList ps) : e : Nil) = do
   -- FIXME: 新しいEnvにセットしないといけない
   Env.newEnv
   _ <- letBind ps
-  eval e
-evalLet _ = liftEffect $ throw "no reachable"
+  ee <- eval e
+  Env.deleteEnv
+  pure ee
+evalLet ((MalSymbol "let*") : (MalVector ps) : e : Nil) = do
+  -- FIXME: 新しいEnvにセットしないといけない
+  Env.newEnv
+  _ <- letBind ps
+  ee <- eval e
+  Env.deleteEnv
+  pure ee
+evalLet _ = liftEffect $ throw "no reachable bb"
 
 
 letBind :: List MalExpr -> MalEnv Unit
-letBind Nil = pure unit
+letBind Nil                    = pure unit
 letBind (MalSymbol b : e : xs) = do
   ev <- eval e
   Env.set b ev
   letBind xs
-letBind _ = liftEffect $ throw "invalid let* 3"
+letBind _                      = liftEffect $ throw "invalid let* 3"
 
 
 
@@ -108,17 +118,14 @@ rep str = case read str of
 
 loop :: MalEnv Unit
 loop = do
-  line <- liftEffect $ readLine "user> "
+  line <- liftEffect $ readLine
   case line of
     ":q" -> pure unit
     _    -> do
-      -- FIXME: try
-      result <- rep line
-      -- result <- try $ rep line
-      -- case result of
-      --   Right exp -> liftEffect $ log exp
-      --   Left err  -> liftEffect $ error $ show err
-      liftEffect $ log result
+      result <- try $ rep line
+      case result of
+        Right exp -> liftEffect $ log exp
+        Left err  -> liftEffect $ error $ show err
       loop
 
 
@@ -147,3 +154,4 @@ main = do
   flip Env.runMalEnv ref do
     setArithOp
     loop
+

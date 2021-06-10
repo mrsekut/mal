@@ -10,7 +10,7 @@ main = loop
 
 loop :: Effect Unit
 loop = do
-  line <- readLine "user> "
+  line <- readLine
   case line of
     ":q" -> pure unit
     ":Q" -> pure unit

@@ -2,13 +2,15 @@ module Env where
 
 import Prelude
 
+import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Reader.Class (class MonadAsk)
 import Control.Monad.Reader.Trans (ReaderT, ask, runReaderT)
-import Data.List (List(..), (:))
+import Data.List (List(..), tail, (:))
 import Data.Map (Map, fromFoldable, insert, lookup, member)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (Error)
 import Effect.Ref as Ref
 import Types (MalExpr)
 
@@ -22,6 +24,16 @@ derive newtype instance monadAskMalEnv :: MonadAsk EnvRef MalEnv
 derive newtype instance functorMalEnv :: Functor MalEnv
 derive newtype instance applicativeMalEnv :: Applicative MalEnv
 derive newtype instance monadEffectMalEnv :: MonadEffect MalEnv
+-- derive newtype instance monadtMalEnv :: Monad MalEnv
+
+-- derive newtype instance monadtMalEnv :: Monad MalEnv
+derive newtype instance monadThrowMalEnv :: MonadThrow Error MalEnv
+
+-- instance monadThrowMalEnv :: MonadThrow Error MalEnv where
+--   throwError = liftEffect <<< throwException
+
+derive newtype instance monadErrorMalEnv :: MonadError Error MalEnv
+--   catchError (MalEnv e) h = MalEnv e
 
 
 get :: String -> List Env -> Maybe MalExpr
@@ -57,6 +69,17 @@ newEnv = do
   liftEffect $ Ref.write (initEnv:es) ref
 
 
+deleteEnv :: MalEnv Unit
+deleteEnv = do
+  ref <- ask
+  ees <- liftEffect $ Ref.read ref
+  case tail ees of
+    Just es -> liftEffect $ Ref.write es ref
+    Nothing -> liftEffect $ Ref.write ees ref
+
+
+-- local :: () -> MalEnv MalExpr
+
 make :: Effect EnvRef
 make = Ref.new $ initEnv:Nil
 
@@ -67,3 +90,4 @@ initEnv = fromFoldable Nil
 
 runMalEnv :: ∀ m. MalEnv m -> EnvRef -> Effect m
 runMalEnv (MalEnv m) = runReaderT m
+

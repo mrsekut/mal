@@ -2,6 +2,6 @@
 
 var readlineSync = require('readline-sync')
 
-exports.readLine = function (prompt) {
-  return readlineSync.question(prompt)
+exports.readLine = function () {
+  return readlineSync.question('user> ')
 }
