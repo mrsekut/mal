@@ -9,16 +9,15 @@ import Data.List (List(..), foldM, (:))
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 import Effect (Effect)
-import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Class (liftEffect)
 import Effect.Console (error, log)
-import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Env (MalEnv)
+import Env (throwStr)
 import Env as Env
 import Mal.Reader (readStr)
 import Printer (printStr)
 import Readline (readLine)
-import Types (MalExpr(..), MalFn)
+import Types (MalEnv, MalExpr(..), MalFn)
 
 
 
@@ -34,15 +33,15 @@ read = readStr
 eval :: MalExpr -> MalEnv MalExpr
 eval ast@(MalList Nil) = pure ast
 eval (MalList ast)     = case ast of
-  ((MalSymbol "def!") : es) -> evalDef es
-  ((MalSymbol "let*") : es) -> evalLet es
-  ((MalSymbol "do") : es)   -> evalDo es
-  ((MalSymbol "if") : es)   -> evalIf es
-  -- ((MalSymbol "fn*") : exs)  ->
-  _                         -> do
+  MalSymbol "def!" : es -> evalDef es
+  MalSymbol "let*" : es -> evalLet es
+  MalSymbol "do" : es   -> evalDo es
+  MalSymbol "if" : es   -> evalIf es
+  MalSymbol "fn*" : es  -> evalFn es
+  _                     -> do
     es <- traverse evalAst ast
     case es of
-      (MalFunction {fn:f} : args) -> liftEffect $ f args
+      (MalFunction {fn:f} : args) -> f args
       _                           -> throwStr "invalid function"
 eval ast               = evalAst ast
 
@@ -61,7 +60,7 @@ evalAst ast             = pure ast
 
 
 evalDef :: List MalExpr -> MalEnv MalExpr
-evalDef ((MalSymbol v) : e : Nil) = do
+evalDef (MalSymbol v : e : Nil) = do
   evd <- evalAst e
   Env.set v evd
   pure evd
@@ -69,9 +68,9 @@ evalDef _                         = throwStr "invalid def!"
 
 
 evalLet :: List MalExpr -> MalEnv MalExpr
-evalLet ((MalList ps) : e : Nil)   = Env.local $ letBind ps *> eval e
-evalLet ((MalVector ps) : e : Nil) = Env.local $ letBind ps *> eval e
-evalLet _                          = throwStr "invalid let*"
+evalLet (MalList ps : e : Nil)   = Env.local $ letBind ps *> eval e
+evalLet (MalVector ps : e : Nil) = Env.local $ letBind ps *> eval e
+evalLet _                        = throwStr "invalid let*"
 
 
 letBind :: List MalExpr -> MalEnv Unit
@@ -98,6 +97,26 @@ evalIf _           = throwStr "invalid if"
 
 evalDo :: List MalExpr -> MalEnv MalExpr
 evalDo es = foldM (const evalAst) MalNil es
+
+
+evalFn :: List MalExpr -> MalEnv MalExpr
+evalFn (MalList params : body : Nil) = do
+  strParams <- traverse unwrapSymbol params
+  pure $ MalFunction { fn : fn strParams body, params : strParams }
+  where
+
+  fn :: List String -> MalExpr -> MalFn
+  fn params' body' = \args -> Env.local do
+    ok <- Env.sets params' args
+    if ok
+      then evalAst body'
+      else throwStr "actual parameters do not match signature "
+evalFn _                             = throwStr "invalid fn*"
+
+
+unwrapSymbol :: MalExpr -> MalEnv String
+unwrapSymbol (MalSymbol s) = pure s
+unwrapSymbol _             = throwStr "fn* parameter must be symbols"
 
 
 
@@ -135,18 +154,16 @@ setArithOp = do
   Env.set "-" $ fn (-)
   Env.set "*" $ fn (*)
   Env.set "/" $ fn (/)
-
-
-fn :: (Int -> Int -> Int) -> MalExpr
-fn op = MalFunction $ { fn : g op }
   where
-  g :: (Int -> Int -> Int) -> MalFn
-  g op' ((MalInt n1) : (MalInt n2) : Nil) = pure $ MalInt $ op' n1 n2
-  g _ _                                   = throw "invalid operator"
+
+  fn :: (Int -> Int -> Int) -> MalExpr
+  fn op = MalFunction $ { fn : g op, params : Nil }
+    where
+    g :: (Int -> Int -> Int) -> MalFn
+    g op' ((MalInt n1) : (MalInt n2) : Nil) = pure $ MalInt $ op' n1 n2
+    g _ _                                   = throwStr "invalid operator"
 
 
-throwStr :: forall m a. MonadEffect m => String -> m a
-throwStr = liftEffect <<< throw
 
 
 --

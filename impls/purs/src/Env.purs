@@ -2,33 +2,15 @@ module Env where
 
 import Prelude
 
-import Control.Monad.Error.Class (class MonadError, class MonadThrow)
-import Control.Monad.Reader.Class (class MonadAsk)
-import Control.Monad.Reader.Trans (ReaderT, ask, runReaderT)
+import Control.Monad.Reader.Trans (ask, runReaderT)
 import Data.List (List(..), tail, (:))
-import Data.Map (Map, fromFoldable, insert, lookup, member)
+import Data.Map (fromFoldable, insert, lookup, member)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error)
+import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Types (MalExpr)
-
-
-type Env = Map String MalExpr
-type EnvRef = Ref.Ref (List Env)
-newtype MalEnv a = MalEnv (ReaderT EnvRef Effect a)
-
-derive newtype instance functorMalEnv :: Functor MalEnv
-derive newtype instance applyMalEnv :: Apply MalEnv
-derive newtype instance applicativeMalEnv :: Applicative MalEnv
-derive newtype instance bindMalEnv ∷ Bind MalEnv
-
-derive newtype instance monadAskMalEnv :: MonadAsk EnvRef MalEnv
-derive newtype instance monadEffectMalEnv :: MonadEffect MalEnv
-derive newtype instance monadThrowMalEnv :: MonadThrow Error MalEnv
-derive newtype instance monadErrorMalEnv :: MonadError Error MalEnv
-
+import Types (EnvRef, MalEnv(..), MalExpr, Env)
 
 
 initEnvRef :: Effect EnvRef
@@ -86,6 +68,12 @@ get ky envs = case find ky envs of
     | otherwise      = find ky' outer
 
 
+sets :: List String -> List MalExpr -> MalEnv Boolean
+sets Nil Nil           = pure true
+sets (ky:kys) (ex:exs) = set ky ex *> sets kys exs
+sets _ _               = pure false
+
+
 set :: String -> MalExpr -> MalEnv Unit
 set ky ex = do
   ref <- ask
@@ -96,3 +84,10 @@ set ky ex = do
   update :: String -> MalExpr -> List Env -> List Env
   update _ _ Nil             = Nil
   update ky' ex' (env:outer) = (insert ky' ex' env):outer
+
+
+
+-- UTILS
+
+throwStr :: forall m a. MonadEffect m => String -> m a
+throwStr = liftEffect <<< throw

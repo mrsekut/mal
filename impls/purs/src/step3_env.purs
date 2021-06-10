@@ -13,12 +13,11 @@ import Effect.Class (liftEffect)
 import Effect.Console (error, log)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Env (MalEnv)
 import Env as Env
 import Mal.Reader (readStr)
 import Printer (printStr)
 import Readline (readLine)
-import Types (MalExpr(..), MalFn)
+import Types (MalEnv, MalExpr(..), MalFn)
 
 
 
@@ -39,7 +38,7 @@ eval (MalList ast)     = case ast of
   _                         -> do
     es <- traverse evalAst ast
     case es of
-      (MalFunction {fn:f} : args) -> liftEffect $ f args
+      (MalFunction {fn:f} : args) -> f args
       _                           -> liftEffect $ throw $ "invalid function"
 eval ast               = evalAst ast
 
@@ -115,11 +114,11 @@ setArithOp = do
 
 
 fn :: (Int -> Int -> Int) -> MalExpr
-fn op = MalFunction $ { fn : g op }
+fn op = MalFunction $ { fn : g op, params : Nil }
   where
   g :: (Int -> Int -> Int) -> MalFn
   g op' ((MalInt n1) : (MalInt n2) : Nil) = pure $ MalInt $ op' n1 n2
-  g _ _                                   = throw "invalid operator"
+  g _ _                                   = liftEffect $ throw "invalid operator"
 
 
 
