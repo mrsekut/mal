@@ -64,7 +64,7 @@ evalDef (MalSymbol v : e : Nil) = do
   evd <- evalAst e
   Env.set v evd
   pure evd
-evalDef _                         = throwStr "invalid def!"
+evalDef _                       = throwStr "invalid def!"
 
 
 evalLet :: List MalExpr -> MalEnv MalExpr
@@ -162,7 +162,6 @@ setArithOp = do
     g :: (Int -> Int -> Int) -> MalFn
     g op' ((MalInt n1) : (MalInt n2) : Nil) = pure $ MalInt $ op' n1 n2
     g _ _                                   = throwStr "invalid operator"
-
 
 
 

@@ -20,14 +20,18 @@ import Types (Key, MalExpr(..), charListToString, listToMap, toList)
 spaces :: Parser String Unit
 spaces = skipMany1 $ oneOf [',', ' ', '\n']
 
+
 comment :: Parser String Unit
 comment = char ';' *> (skipMany $ noneOf [ '\r', '\n' ])
+
 
 ignored :: Parser String Unit
 ignored = skipMany $ spaces <|> comment
 
+
 symbol :: Parser String Char
 symbol = oneOf ['!', '#', '$', '%', '&', '|', '*', '+', '-', '/', ':', '<', '=', '>', '?', '@', '^', '_', '~']
+
 
 nat :: Parser String Int
 nat = do
@@ -35,11 +39,13 @@ nat = do
   rest <- many digit
   pure <<< fromMaybe 0 <<< fromString <<< charListToString $ first : rest
 
+
 escape :: Parser String (List Char)
 escape = do
   b <- char '\\'
   c <- oneOf [ '\"', '\\', 'n' ]
   pure $ b : c : Nil
+
 
 nonEscape :: Parser String (List Char)
 nonEscape = do
@@ -50,22 +56,34 @@ nonEscape = do
 
 -- ATOM
 
+readAtom :: Parser String MalExpr
+readAtom = readNumber
+       <|> try readNegativeNumber
+       <|> readString
+       <|> readKeyword
+       <|> readSymbol
+
+
 readNumber :: Parser String MalExpr
 readNumber = MalInt <$> nat
 
+
 readNegativeNumber :: Parser String MalExpr
 readNegativeNumber = MalInt <<< negate <$> (char '-' *> nat)
+
 
 readString :: Parser String MalExpr
 readString = MalString
          <<< charListToString
          <$> (char '"' *> (concat <$> many (escape <|> nonEscape)) <* char '"')
 
+
 readKeyword :: Parser String MalExpr
 readKeyword =
   MalKeyword <$> charListToString
              <$> ((:) ':')
              <$> (char ':' *> many (letter <|> digit <|> symbol))
+
 
 readSymbol :: Parser String MalExpr
 readSymbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
@@ -75,13 +93,6 @@ readSymbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
   g "false" = MalBoolean false
   g "nil"   = MalNil
   g s       = MalSymbol s
-
-readAtom :: Parser String MalExpr
-readAtom = readNumber
-       <|> try readNegativeNumber
-       <|> readString
-       <|> readKeyword
-       <|> readSymbol
 
 
 
@@ -116,11 +127,21 @@ readHashMap = do
 
 -- MACROS
 
+readMacro :: Parser String MalExpr
+readMacro = fix $ \_ ->
+      macro "\'" "quote"
+  <|> macro "`" "quasiquote"
+  <|> try (macro "~@" "splice-unquote")
+  <|> macro "~" "unquote"
+  <|> macro "@" "deref"
+  <|> readWithMeta
+
 macro :: String -> String -> Parser String MalExpr
 macro tok sym = addPrefix sym <$> (string tok *> readForm)
   where
   addPrefix :: String -> MalExpr -> MalExpr
   addPrefix s x = toList $ MalSymbol s : x : Nil
+
 
 readWithMeta :: Parser String MalExpr
 readWithMeta = addPrefix <$> (char '^' *> readForm) <*> readForm
@@ -128,28 +149,17 @@ readWithMeta = addPrefix <$> (char '^' *> readForm) <*> readForm
   addPrefix :: MalExpr -> MalExpr -> MalExpr
   addPrefix m x = toList $ MalSymbol "with-meta" : x : m : Nil
 
-readMacro :: Parser String MalExpr
-readMacro =
-  fix $ \_ -> macro "\'" "quote"
-          <|> macro "`" "quasiquote"
-          <|> try (macro "~@" "splice-unquote")
-          <|> macro "~" "unquote"
-          <|> macro "@" "deref"
-          <|> readWithMeta
-
 
 
 --
 
 readForm :: Parser String MalExpr
-readForm =
-  fix $ \_ -> ignored
-          *> ( readMacro
-           <|> readList
-           <|> readVector
-           <|> readHashMap
-           <|> readAtom
-             )
+readForm = fix $ \_ -> ignored
+   *> ( readMacro
+    <|> readList
+    <|> readVector
+    <|> readHashMap
+    <|> readAtom)
 
 
 
