@@ -5,7 +5,7 @@ import Prelude
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader.Class (ask)
 import Data.Either (Either(..))
-import Data.List (List(..), (:))
+import Data.List (List(..), foldM, (:))
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 import Effect (Effect)
@@ -34,10 +34,10 @@ read = readStr
 eval :: MalExpr -> MalEnv MalExpr
 eval ast@(MalList Nil) = pure ast
 eval (MalList ast)     = case ast of
-  ((MalSymbol "def!") : es)  -> evalDef es
-  ((MalSymbol "let*") : es)  -> evalLet es
-  -- ((MalSymbol "do") : exs)  ->
-  ((MalSymbol "if") : es)    -> evalIf es
+  ((MalSymbol "def!") : es) -> evalDef es
+  ((MalSymbol "let*") : es) -> evalLet es
+  ((MalSymbol "do") : es)   -> evalDo es
+  ((MalSymbol "if") : es)   -> evalIf es
   -- ((MalSymbol "fn*") : exs)  ->
   _                         -> do
     es <- traverse evalAst ast
@@ -54,10 +54,10 @@ evalAst (MalSymbol s)   = do
   case Env.get s envs of
     Just k  -> pure k
     Nothing -> throwStr $ "'" <> s <> "'" <> " not found"
-evalAst ast@(MalList _)   = eval ast
-evalAst (MalVector envs)  = MalVector <$> traverse eval envs
-evalAst (MalHashMap envs) = MalHashMap <$> traverse eval envs
-evalAst ast               = pure ast
+evalAst ast@(MalList _) = eval ast
+evalAst (MalVector es)  = MalVector <$> traverse eval es
+evalAst (MalHashMap es) = MalHashMap <$> traverse eval es
+evalAst ast             = pure ast
 
 
 evalDef :: List MalExpr -> MalEnv MalExpr
@@ -96,6 +96,8 @@ evalIf (b:t:Nil)   = do
 evalIf _           = throwStr "invalid if"
 
 
+evalDo :: List MalExpr -> MalEnv MalExpr
+evalDo es = foldM (const evalAst) MalNil es
 
 
 
