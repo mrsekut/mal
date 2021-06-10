@@ -34,8 +34,8 @@ read = readStr
 eval :: MalExpr -> MalEnv MalExpr
 eval ast@(MalList Nil) = pure ast
 eval (MalList ast)     = case ast of
-  ((MalSymbol "def!") : _)  -> evalDef ast
-  ((MalSymbol "let*") : _)  -> evalLet ast
+  ((MalSymbol "def!") : es)  -> evalDef es
+  ((MalSymbol "let*") : es)  -> evalLet es
   _                         -> do
     es <- traverse evalAst ast
     case es of
@@ -58,19 +58,17 @@ evalAst ast               = pure ast
 
 
 evalDef :: List MalExpr -> MalEnv MalExpr
-evalDef ((MalSymbol "def!") : Nil)                     = liftEffect $ throw "invalid def!"
-evalDef ((MalSymbol "def!") : (MalSymbol v) : e : Nil) = do
+evalDef ((MalSymbol v) : e : Nil) = do
   evd <- evalAst e
   Env.set v evd
   pure evd
-evalDef _                                              = liftEffect $ throw "invalid def!"
+evalDef _                         = liftEffect $ throw "invalid def!"
 
 
 evalLet :: List MalExpr -> MalEnv MalExpr
-evalLet ((MalSymbol "let*") : Nil)                      = liftEffect $ throw "invalid let*"
-evalLet ((MalSymbol "let*") : (MalList ps) : e : Nil)   = Env.local $ letBind ps *> eval e
-evalLet ((MalSymbol "let*") : (MalVector ps) : e : Nil) = Env.local $ letBind ps *> eval e
-evalLet _                                               = liftEffect $ throw "invalid let*"
+evalLet ((MalList ps) : e : Nil)   = Env.local $ letBind ps *> eval e
+evalLet ((MalVector ps) : e : Nil) = Env.local $ letBind ps *> eval e
+evalLet _                          = liftEffect $ throw "invalid let*"
 
 
 letBind :: List MalExpr -> MalEnv Unit
