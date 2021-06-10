@@ -51,6 +51,6 @@ charListToString = fromCharArray <<< Array.fromFoldable
 
 
 flatTuples :: List (Tuple Key MalExpr) -> List MalExpr
-flatTuples ((Tuple (StringKey a) b) : xs)   = MalString a : b : flatTuples xs
-flatTuples ((Tuple (KeywordKey a) b) : xs)  = MalKeyword a : b : flatTuples xs
-flatTuples _                                = Nil
+flatTuples ((Tuple (StringKey a) b) : xs)  = MalString a : b : flatTuples xs
+flatTuples ((Tuple (KeywordKey a) b) : xs) = MalKeyword a : b : flatTuples xs
+flatTuples _                               = Nil

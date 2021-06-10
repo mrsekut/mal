@@ -21,10 +21,12 @@ printStr (MalVector vs)   = "[" <> printList vs <> "]"
 printStr (MalHashMap hm)  = "{" <> (hm # toUnfoldable # flatTuples # printList) <> "}"
 printStr (MalFunction _)  = "#<function>"
 
+
 printList :: List MalExpr -> String
 printList Nil       = ""
 printList (x : Nil) = printStr x
 printList (x : xs)  = printStr x <> " " <> printList xs
+
 
 keyValuePairs :: List MalExpr -> Maybe (List (Tuple Key MalExpr))
 keyValuePairs Nil                       = pure Nil

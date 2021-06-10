@@ -1,4 +1,4 @@
-module Main where
+module Main3 where
 
 import Prelude
 
@@ -13,7 +13,7 @@ import Effect.Class (liftEffect)
 import Effect.Console (error, log)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Env (MalEnv, get)
+import Env (MalEnv)
 import Env as Env
 import Mal.Reader (readStr)
 import Printer (printStr)
@@ -31,71 +31,52 @@ read = readStr
 
 -- EVAL
 
--- FIXME: let*
 eval :: MalExpr -> MalEnv MalExpr
-eval ast@(MalList Nil)  = pure ast
-eval (MalList ast)    = do
-  case ast of
-    ((MalSymbol "def!") : _)  -> evalDef ast
-    ((MalSymbol "let*") : _)  -> evalLet ast
-    _ -> do
-      es <- traverse evalAst ast
-      case es of
-        (MalFunction {fn:f} : args) -> liftEffect $ f args
-        _ -> liftEffect $ throw $ "no reachable ??"
-eval ast              = evalAst ast
+eval ast@(MalList Nil) = pure ast
+eval (MalList ast)     = case ast of
+  ((MalSymbol "def!") : _)  -> evalDef ast
+  ((MalSymbol "let*") : _)  -> evalLet ast
+  _                         -> do
+    es <- traverse evalAst ast
+    case es of
+      (MalFunction {fn:f} : args) -> liftEffect $ f args
+      _                           -> liftEffect $ throw $ "invalid function"
+eval ast               = evalAst ast
 
 
 evalAst :: MalExpr -> MalEnv MalExpr
 evalAst (MalSymbol s)   = do
   ref <- ask
-  es <- liftEffect $ Ref.read ref
-  case get s es of
-    Just k -> pure k
+  envs <- liftEffect $ Ref.read ref
+  case Env.get s envs of
+    Just k  -> pure k
     Nothing -> liftEffect $ throw $ "'" <> s <> "'" <> " not found"
-evalAst ast@(MalList _) = eval ast
-evalAst (MalVector es)  = MalVector <$> traverse eval es
-evalAst (MalHashMap es) = MalHashMap <$> traverse eval es
-evalAst ast             = pure ast
+evalAst ast@(MalList _)   = eval ast
+evalAst (MalVector envs)  = MalVector <$> traverse eval envs
+evalAst (MalHashMap envs) = MalHashMap <$> traverse eval envs
+evalAst ast               = pure ast
 
 
--- FIXME: 関数わける必要ないかも
 evalDef :: List MalExpr -> MalEnv MalExpr
-evalDef ((MalSymbol "def!") : Nil) = liftEffect $ throw "invalid def!"
+evalDef ((MalSymbol "def!") : Nil)                     = liftEffect $ throw "invalid def!"
 evalDef ((MalSymbol "def!") : (MalSymbol v) : e : Nil) = do
   evd <- evalAst e
   Env.set v evd
   pure evd
-evalDef _ = liftEffect $ throw "no reachable aa"
+evalDef _                                              = liftEffect $ throw "invalid def!"
 
 
--- FIXME: 関数わける必要ないかも
 evalLet :: List MalExpr -> MalEnv MalExpr
-evalLet ((MalSymbol "let*") : Nil) = liftEffect $ throw "invalid let*"
-evalLet ((MalSymbol "let*") : (MalList ps) : e : Nil) = do
-  -- FIXME: 新しいEnvにセットしないといけない
-  Env.newEnv
-  _ <- letBind ps
-  ee <- eval e
-  Env.deleteEnv
-  pure ee
-evalLet ((MalSymbol "let*") : (MalVector ps) : e : Nil) = do
-  -- FIXME: 新しいEnvにセットしないといけない
-  Env.newEnv
-  _ <- letBind ps
-  ee <- eval e
-  Env.deleteEnv
-  pure ee
-evalLet _ = liftEffect $ throw "no reachable bb"
+evalLet ((MalSymbol "let*") : Nil)                      = liftEffect $ throw "invalid let*"
+evalLet ((MalSymbol "let*") : (MalList ps) : e : Nil)   = Env.local $ letBind ps *> eval e
+evalLet ((MalSymbol "let*") : (MalVector ps) : e : Nil) = Env.local $ letBind ps *> eval e
+evalLet _                                               = liftEffect $ throw "invalid let*"
 
 
 letBind :: List MalExpr -> MalEnv Unit
-letBind Nil                    = pure unit
-letBind (MalSymbol b : e : xs) = do
-  ev <- eval e
-  Env.set b ev
-  letBind xs
-letBind _                      = liftEffect $ throw "invalid let* 3"
+letBind Nil                     = pure unit
+letBind (MalSymbol ky : e : es) = (Env.set ky =<< eval e) *> letBind es
+letBind _                       = liftEffect $ throw "invalid let*"
 
 
 
@@ -110,15 +91,13 @@ print = printStr
 
 rep :: String -> MalEnv String
 rep str = case read str of
-  Left _ -> liftEffect $ throw "EOF"
-  Right ast -> do
-    result <- eval ast
-    pure $ print result
+  Left _    -> liftEffect $ throw "EOF"
+  Right ast -> print <$> eval ast
 
 
 loop :: MalEnv Unit
 loop = do
-  line <- liftEffect $ readLine
+  line <- liftEffect readLine
   case line of
     ":q" -> pure unit
     _    -> do
@@ -150,8 +129,7 @@ fn op = MalFunction $ { fn : g op }
 
 main :: Effect Unit
 main = do
-  ref <- liftEffect Env.make
+  ref <- liftEffect Env.initEnvRef
   flip Env.runMalEnv ref do
     setArithOp
     loop
-

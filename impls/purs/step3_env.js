@@ -349,6 +349,7 @@ var PS = {};
   }, $foreign.pureE);
   var functorEffect = new Data_Functor.Functor(Control_Applicative.liftA1(applicativeEffect));
   exports["functorEffect"] = functorEffect;
+  exports["applyEffect"] = applyEffect;
   exports["applicativeEffect"] = applicativeEffect;
   exports["bindEffect"] = bindEffect;
   exports["monadEffect"] = monadEffect;
@@ -894,6 +895,7 @@ var PS = {};
   };
   exports["runReaderT"] = runReaderT;
   exports["functorReaderT"] = functorReaderT;
+  exports["applyReaderT"] = applyReaderT;
   exports["applicativeReaderT"] = applicativeReaderT;
   exports["bindReaderT"] = bindReaderT;
   exports["monadEffectReader"] = monadEffectReader;
@@ -18985,10 +18987,12 @@ var PS = {};
   "use strict";
   $PS["Env"] = $PS["Env"] || {};
   var exports = $PS["Env"];
+  var Control_Applicative = $PS["Control.Applicative"];
   var Control_Bind = $PS["Control.Bind"];
   var Control_Monad_Error_Class = $PS["Control.Monad.Error.Class"];
   var Control_Monad_Reader_Class = $PS["Control.Monad.Reader.Class"];
   var Control_Monad_Reader_Trans = $PS["Control.Monad.Reader.Trans"];
+  var Data_Boolean = $PS["Data.Boolean"];
   var Data_List = $PS["Data.List"];
   var Data_List_Types = $PS["Data.List.Types"];
   var Data_Map_Internal = $PS["Data.Map.Internal"];
@@ -18997,113 +19001,121 @@ var PS = {};
   var Effect = $PS["Effect"];
   var Effect_Class = $PS["Effect.Class"];
   var Effect_Ref = $PS["Effect.Ref"];
-  var update = function (v) {
-      return function (v1) {
-          return function (v2) {
-              if (v2 instanceof Data_List_Types.Nil) {
-                  return Data_List_Types.Nil.value;
-              };
-              if (v2 instanceof Data_List_Types.Cons) {
-                  return new Data_List_Types.Cons(Data_Map_Internal.insert(Data_Ord.ordString)(v)(v1)(v2.value0), v2.value1);
-              };
-              throw new Error("Failed pattern match at Env (line 60, column 1 - line 60, column 52): " + [ v.constructor.name, v1.constructor.name, v2.constructor.name ]);
-          };
-      };
-  };
   var runMalEnv = function (v) {
       return Control_Monad_Reader_Trans.runReaderT(v);
   };                                                                                                              
-
-  // instance monadThrowMalEnv :: MonadThrow Error MalEnv where
-  //   throwError = liftEffect <<< throwException
   var monadErrorMalEnv = Control_Monad_Reader_Trans.monadErrorReaderT(Control_Monad_Error_Class.monadErrorEffect);
   var monadEffectMalEnv = Control_Monad_Reader_Trans.monadEffectReader(Effect_Class.monadEffectEffect);
   var monadAskMalEnv = Control_Monad_Reader_Trans.monadAskReaderT(Effect.monadEffect);
+
+  // Environment
   var initEnv = Data_Map_Internal.fromFoldable(Data_Ord.ordString)(Data_List_Types.foldableList)(Data_List_Types.Nil.value);
+  var initEnvRef = Effect_Ref["new"](new Data_List_Types.Cons(initEnv, Data_List_Types.Nil.value));
 
-  // local :: () -> MalEnv MalExpr
-  var make = Effect_Ref["new"](new Data_List_Types.Cons(initEnv, Data_List_Types.Nil.value));
-  var functorMalEnv = Control_Monad_Reader_Trans.functorReaderT(Effect.functorEffect);
-  var find = function ($copy_v) {
-      return function ($copy_v1) {
-          var $tco_var_v = $copy_v;
-          var $tco_done = false;
-          var $tco_result;
-          function $tco_loop(v, v1) {
-              if (v1 instanceof Data_List_Types.Nil) {
-                  $tco_done = true;
-                  return Data_Maybe.Nothing.value;
-              };
-              if (v1 instanceof Data_List_Types.Cons) {
-                  var $16 = Data_Map_Internal.member(Data_Ord.ordString)(v)(v1.value0);
-                  if ($16) {
-                      $tco_done = true;
-                      return new Data_Maybe.Just(v1.value0);
+  // VARIABLE
+  var getVar = function (ky) {
+      return function (envs) {
+          var find = function ($copy_v) {
+              return function ($copy_v1) {
+                  var $tco_var_v = $copy_v;
+                  var $tco_done = false;
+                  var $tco_result;
+                  function $tco_loop(v, v1) {
+                      if (v1 instanceof Data_List_Types.Nil) {
+                          $tco_done = true;
+                          return Data_Maybe.Nothing.value;
+                      };
+                      if (v1 instanceof Data_List_Types.Cons) {
+                          if (Data_Map_Internal.member(Data_Ord.ordString)(v)(v1.value0)) {
+                              $tco_done = true;
+                              return new Data_Maybe.Just(v1.value0);
+                          };
+                          if (Data_Boolean.otherwise) {
+                              $tco_var_v = v;
+                              $copy_v1 = v1.value1;
+                              return;
+                          };
+                      };
+                      throw new Error("Failed pattern match at Env (line 82, column 3 - line 82, column 42): " + [ v.constructor.name, v1.constructor.name ]);
                   };
-                  $tco_var_v = v;
-                  $copy_v1 = v1.value1;
-                  return;
+                  while (!$tco_done) {
+                      $tco_result = $tco_loop($tco_var_v, $copy_v1);
+                  };
+                  return $tco_result;
               };
-              throw new Error("Failed pattern match at Env (line 45, column 1 - line 45, column 40): " + [ v.constructor.name, v1.constructor.name ]);
           };
-          while (!$tco_done) {
-              $tco_result = $tco_loop($tco_var_v, $copy_v1);
-          };
-          return $tco_result;
-      };
-  };
-
-  //   catchError (MalEnv e) h = MalEnv e
-  var get = function (k) {
-      return function (es) {
-          var v = find(k)(es);
+          var v = find(ky)(envs);
           if (v instanceof Data_Maybe.Just) {
-              return Data_Map_Internal.lookup(Data_Ord.ordString)(k)(v.value0);
+              return Data_Map_Internal.lookup(Data_Ord.ordString)(ky)(v.value0);
           };
           if (v instanceof Data_Maybe.Nothing) {
               return Data_Maybe.Nothing.value;
           };
-          throw new Error("Failed pattern match at Env (line 40, column 12 - line 42, column 23): " + [ v.constructor.name ]);
+          throw new Error("Failed pattern match at Env (line 77, column 18 - line 79, column 23): " + [ v.constructor.name ]);
       };
   };
+  var functorMalEnv = Control_Monad_Reader_Trans.functorReaderT(Effect.functorEffect);
   var bindMalEnv = Control_Monad_Reader_Trans.bindReaderT(Effect.bindEffect);
   var deleteEnv = Control_Bind.bind(bindMalEnv)(Control_Monad_Reader_Class.ask(monadAskMalEnv))(function (ref) {
-      return Control_Bind.bind(bindMalEnv)(Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.read(ref)))(function (ees) {
-          var v = Data_List.tail(ees);
+      return Control_Bind.bind(bindMalEnv)(Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.read(ref)))(function (envs) {
+          var v = Data_List.tail(envs);
           if (v instanceof Data_Maybe.Just) {
               return Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.write(v.value0)(ref));
           };
           if (v instanceof Data_Maybe.Nothing) {
-              return Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.write(ees)(ref));
+              return Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.write(envs)(ref));
           };
-          throw new Error("Failed pattern match at Env (line 76, column 3 - line 78, column 46): " + [ v.constructor.name ]);
+          throw new Error("Failed pattern match at Env (line 60, column 3 - line 62, column 47): " + [ v.constructor.name ]);
       });
   });
   var newEnv = Control_Bind.bind(bindMalEnv)(Control_Monad_Reader_Class.ask(monadAskMalEnv))(function (ref) {
-      return Control_Bind.bind(bindMalEnv)(Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.read(ref)))(function (es) {
-          return Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.write(new Data_List_Types.Cons(initEnv, es))(ref));
+      return Control_Bind.bind(bindMalEnv)(Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.read(ref)))(function (envs) {
+          return Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.write(new Data_List_Types.Cons(initEnv, envs))(ref));
       });
   });
-  var set = function (k) {
-      return function (e) {
+  var setVar = function (ky) {
+      return function (ex) {
+          var update = function (v) {
+              return function (v1) {
+                  return function (v2) {
+                      if (v2 instanceof Data_List_Types.Nil) {
+                          return Data_List_Types.Nil.value;
+                      };
+                      if (v2 instanceof Data_List_Types.Cons) {
+                          return new Data_List_Types.Cons(Data_Map_Internal.insert(Data_Ord.ordString)(v)(v1)(v2.value0), v2.value1);
+                      };
+                      throw new Error("Failed pattern match at Env (line 96, column 3 - line 96, column 54): " + [ v.constructor.name, v1.constructor.name, v2.constructor.name ]);
+                  };
+              };
+          };
           return Control_Bind.bind(bindMalEnv)(Control_Monad_Reader_Class.ask(monadAskMalEnv))(function (ref) {
               return Control_Bind.bind(bindMalEnv)(Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.read(ref)))(function (env) {
-                  return Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.write(update(k)(e)(env))(ref));
+                  return Effect_Class.liftEffect(monadEffectMalEnv)(Effect_Ref.write(update(ky)(ex)(env))(ref));
               });
           });
       };
   };
+  var applyMalEnv = Control_Monad_Reader_Trans.applyReaderT(Effect.applyEffect);
   var applicativeMalEnv = Control_Monad_Reader_Trans.applicativeReaderT(Effect.applicativeEffect);
-  exports["get"] = get;
-  exports["set"] = set;
-  exports["newEnv"] = newEnv;
-  exports["deleteEnv"] = deleteEnv;
-  exports["make"] = make;
+  var local = function (cb) {
+      return Control_Bind.discard(Control_Bind.discardUnit)(bindMalEnv)(newEnv)(function () {
+          return Control_Bind.bind(bindMalEnv)(cb)(function (result) {
+              return Control_Bind.discard(Control_Bind.discardUnit)(bindMalEnv)(deleteEnv)(function () {
+                  return Control_Applicative.pure(applicativeMalEnv)(result);
+              });
+          });
+      });
+  };
+  exports["initEnvRef"] = initEnvRef;
   exports["runMalEnv"] = runMalEnv;
+  exports["local"] = local;
+  exports["getVar"] = getVar;
+  exports["setVar"] = setVar;
+  exports["functorMalEnv"] = functorMalEnv;
+  exports["applyMalEnv"] = applyMalEnv;
+  exports["applicativeMalEnv"] = applicativeMalEnv;
   exports["bindMalEnv"] = bindMalEnv;
   exports["monadAskMalEnv"] = monadAskMalEnv;
-  exports["functorMalEnv"] = functorMalEnv;
-  exports["applicativeMalEnv"] = applicativeMalEnv;
   exports["monadEffectMalEnv"] = monadEffectMalEnv;
   exports["monadErrorMalEnv"] = monadErrorMalEnv;
 })(PS);
@@ -19853,9 +19865,7 @@ var PS = {};
       };
   })())(Control_Apply.applySecond(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Text_Parsing_Parser_String["char"](Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)("-"))(nat));
 
-  //--------------------------------------------------------------
-  // reader atom
-  //--------------------------------------------------------------
+  // ATOM
   var readNumber = Data_Functor.map(Text_Parsing_Parser.functorParserT(Data_Identity.functorIdentity))(Types.MalInt.create)(nat);
   var $$escape = Control_Bind.bind(Text_Parsing_Parser.bindParserT(Data_Identity.monadIdentity))(Text_Parsing_Parser_String["char"](Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)("\\"))(function (b) {
       return Control_Bind.bind(Text_Parsing_Parser.bindParserT(Data_Identity.monadIdentity))(Text_Parsing_Parser_String.oneOf(Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)([ "\"", "\\", "n" ]))(function (c) {
@@ -19869,7 +19879,7 @@ var PS = {};
   var comment = Control_Apply.applySecond(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Text_Parsing_Parser_String["char"](Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)(";"))(Text_Parsing_Parser_Combinators.skipMany(Data_Identity.monadIdentity)(Text_Parsing_Parser_String.noneOf(Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)([ "\x0d", "\x0a" ])));
   var ignored = Text_Parsing_Parser_Combinators.skipMany(Data_Identity.monadIdentity)(Control_Alt.alt(Text_Parsing_Parser.altParserT(Data_Identity.monadIdentity))(spaces)(comment));
 
-  //--------------------------------------------------------------
+  //
   var readVector = Control_Lazy.fix(Text_Parsing_Parser.lazyParserT)(function (v) {
       return Data_Functor.map(Text_Parsing_Parser.functorParserT(Data_Identity.functorIdentity))(Types.MalVector.create)(Control_Apply.applyFirst(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Control_Apply.applySecond(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Control_Apply.applySecond(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Text_Parsing_Parser_String["char"](Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)("["))(ignored))(Text_Parsing_Parser_Combinators.endBy(Data_Identity.monadIdentity)(readForm)(ignored)))(Text_Parsing_Parser_String["char"](Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)("]")));
   });
@@ -19877,12 +19887,12 @@ var PS = {};
       return Control_Alt.alt(Text_Parsing_Parser.altParserT(Data_Identity.monadIdentity))(Control_Alt.alt(Text_Parsing_Parser.altParserT(Data_Identity.monadIdentity))(Control_Alt.alt(Text_Parsing_Parser.altParserT(Data_Identity.monadIdentity))(Control_Alt.alt(Text_Parsing_Parser.altParserT(Data_Identity.monadIdentity))(Control_Alt.alt(Text_Parsing_Parser.altParserT(Data_Identity.monadIdentity))(macro("'")("quote"))(macro("`")("quasiquote")))(Text_Parsing_Parser_Combinators["try"](Data_Identity.monadIdentity)(macro("~@")("splice-unquote"))))(macro("~")("unquote")))(macro("@")("deref")))(readWithMeta);
   });
 
-  //--------------------------------------------------------------
+  //
   var readList = Control_Lazy.fix(Text_Parsing_Parser.lazyParserT)(function (v) {
       return Data_Functor.map(Text_Parsing_Parser.functorParserT(Data_Identity.functorIdentity))(Types.MalList.create)(Control_Apply.applyFirst(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Control_Apply.applySecond(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Control_Apply.applySecond(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Text_Parsing_Parser_String["char"](Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)("("))(ignored))(Text_Parsing_Parser_Combinators.endBy(Data_Identity.monadIdentity)(readForm)(ignored)))(Text_Parsing_Parser_String["char"](Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)(")")));
   });
 
-  //--------------------------------------------------------------
+  //
   var readHashMap = (function () {
       var g = function (v) {
           if (v instanceof Data_Maybe.Just) {
@@ -19891,14 +19901,14 @@ var PS = {};
           if (v instanceof Data_Maybe.Nothing) {
               return new Types.MalString("hash map error");
           };
-          throw new Error("Failed pattern match at Mal.Reader (line 112, column 3 - line 112, column 51): " + [ v.constructor.name ]);
+          throw new Error("Failed pattern match at Mal.Reader (line 111, column 3 - line 111, column 51): " + [ v.constructor.name ]);
       };
       return Data_Functor.map(Text_Parsing_Parser.functorParserT(Data_Identity.functorIdentity))(Data_Functor.map(Data_Functor.functorFn)(g)(Printer.keyValuePairs))(Control_Lazy.fix(Text_Parsing_Parser.lazyParserT)(function (v) {
           return Control_Apply.applyFirst(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Control_Apply.applySecond(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Control_Apply.applySecond(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Text_Parsing_Parser_String["char"](Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)("{"))(ignored))(Text_Parsing_Parser_Combinators.endBy(Data_Identity.monadIdentity)(readForm)(ignored)))(Text_Parsing_Parser_String["char"](Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)("}"));
       }));
   })();
 
-  //--------------------------------------------------------------
+  //
   var readForm = Control_Lazy.fix(Text_Parsing_Parser.lazyParserT)(function (v) {
       return Control_Apply.applySecond(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(ignored)(Control_Alt.alt(Text_Parsing_Parser.altParserT(Data_Identity.monadIdentity))(Control_Alt.alt(Text_Parsing_Parser.altParserT(Data_Identity.monadIdentity))(Control_Alt.alt(Text_Parsing_Parser.altParserT(Data_Identity.monadIdentity))(Control_Alt.alt(Text_Parsing_Parser.altParserT(Data_Identity.monadIdentity))(readMacro)(readList))(readVector))(readHashMap))(readAtom));
   });
@@ -19911,9 +19921,7 @@ var PS = {};
       return Control_Apply.apply(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Data_Functor.map(Text_Parsing_Parser.functorParserT(Data_Identity.functorIdentity))(addPrefix)(Control_Apply.applySecond(Text_Parsing_Parser.applyParserT(Data_Identity.monadIdentity))(Text_Parsing_Parser_String["char"](Text_Parsing_Parser_String.stringLikeString)(Data_Identity.monadIdentity)("^"))(readForm)))(readForm);
   })();
 
-  //--------------------------------------------------------------
-  // reader macros
-  //--------------------------------------------------------------
+  // MACROS
   var macro = function (tok) {
       return function (sym) {
           var addPrefix = function (s) {
@@ -19925,7 +19933,7 @@ var PS = {};
       };
   };
 
-  //--------------------------------------------------------------
+  //
   // FIXME: 何もやってない感がすごい
   var readStr = function (str) {
       var v = Text_Parsing_Parser.runParser(str)(readForm);
@@ -19935,7 +19943,7 @@ var PS = {};
       if (v instanceof Data_Either.Right) {
           return new Data_Either.Right(v.value0);
       };
-      throw new Error("Failed pattern match at Mal.Reader (line 164, column 15 - line 166, column 25): " + [ v.constructor.name ]);
+      throw new Error("Failed pattern match at Mal.Reader (line 160, column 15 - line 162, column 25): " + [ v.constructor.name ]);
   };
   exports["readStr"] = readStr;
 })(PS);
@@ -19959,6 +19967,7 @@ var PS = {};
   $PS["Main"] = $PS["Main"] || {};
   var exports = $PS["Main"];
   var Control_Applicative = $PS["Control.Applicative"];
+  var Control_Apply = $PS["Control.Apply"];
   var Control_Bind = $PS["Control.Bind"];
   var Control_Monad_Error_Class = $PS["Control.Monad.Error.Class"];
   var Control_Monad_Reader_Class = $PS["Control.Monad.Reader.Class"];
@@ -20003,10 +20012,10 @@ var PS = {};
           fn: g(op)
       });
   };
-  var setArithOp = Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.set("+")(fn(Data_Semiring.add(Data_Semiring.semiringInt))))(function () {
-      return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.set("-")(fn(Data_Ring.sub(Data_Ring.ringInt))))(function () {
-          return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.set("*")(fn(Data_Semiring.mul(Data_Semiring.semiringInt))))(function () {
-              return Env.set("/")(fn(Data_EuclideanRing.div(Data_EuclideanRing.euclideanRingInt)));
+  var setArithOp = Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.setVar("+")(fn(Data_Semiring.add(Data_Semiring.semiringInt))))(function () {
+      return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.setVar("-")(fn(Data_Ring.sub(Data_Ring.ringInt))))(function () {
+          return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.setVar("*")(fn(Data_Semiring.mul(Data_Semiring.semiringInt))))(function () {
+              return Env.setVar("/")(fn(Data_EuclideanRing.div(Data_EuclideanRing.euclideanRingInt)));
           });
       });
   });
@@ -20015,71 +20024,47 @@ var PS = {};
           return Control_Applicative.pure(Env.applicativeMalEnv)(Data_Unit.unit);
       };
       if (v instanceof Data_List_Types.Cons && (v.value0 instanceof Types.MalSymbol && v.value1 instanceof Data_List_Types.Cons)) {
-          return Control_Bind.bind(Env.bindMalEnv)($$eval(v.value1.value0))(function (ev) {
-              return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.set(v.value0.value0)(ev))(function () {
-                  return letBind(v.value1.value1);
-              });
-          });
+          return Control_Apply.applySecond(Env.applyMalEnv)(Control_Bind.bindFlipped(Env.bindMalEnv)(Env.setVar(v.value0.value0))($$eval(v.value1.value0)))(letBind(v.value1.value1));
       };
-      return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("invalid let* 3"));
+      return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("invalid let*"));
   };
-
-  // FIXME: 関数わける必要ないかも
   var evalLet = function (v) {
       if (v instanceof Data_List_Types.Cons && (v.value0 instanceof Types.MalSymbol && (v.value0.value0 === "let*" && v.value1 instanceof Data_List_Types.Nil))) {
           return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("invalid let*"));
       };
       if (v instanceof Data_List_Types.Cons && (v.value0 instanceof Types.MalSymbol && (v.value0.value0 === "let*" && (v.value1 instanceof Data_List_Types.Cons && (v.value1.value0 instanceof Types.MalList && (v.value1.value1 instanceof Data_List_Types.Cons && v.value1.value1.value1 instanceof Data_List_Types.Nil)))))) {
-          return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.newEnv)(function () {
-              return Control_Bind.bind(Env.bindMalEnv)(letBind(v.value1.value0.value0))(function () {
-                  return Control_Bind.bind(Env.bindMalEnv)($$eval(v.value1.value1.value0))(function (ee) {
-                      return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.deleteEnv)(function () {
-                          return Control_Applicative.pure(Env.applicativeMalEnv)(ee);
-                      });
-                  });
-              });
-          });
+          return Env.local(Control_Apply.applySecond(Env.applyMalEnv)(letBind(v.value1.value0.value0))($$eval(v.value1.value1.value0)));
       };
       if (v instanceof Data_List_Types.Cons && (v.value0 instanceof Types.MalSymbol && (v.value0.value0 === "let*" && (v.value1 instanceof Data_List_Types.Cons && (v.value1.value0 instanceof Types.MalVector && (v.value1.value1 instanceof Data_List_Types.Cons && v.value1.value1.value1 instanceof Data_List_Types.Nil)))))) {
-          return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.newEnv)(function () {
-              return Control_Bind.bind(Env.bindMalEnv)(letBind(v.value1.value0.value0))(function () {
-                  return Control_Bind.bind(Env.bindMalEnv)($$eval(v.value1.value1.value0))(function (ee) {
-                      return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.deleteEnv)(function () {
-                          return Control_Applicative.pure(Env.applicativeMalEnv)(ee);
-                      });
-                  });
-              });
-          });
+          return Env.local(Control_Apply.applySecond(Env.applyMalEnv)(letBind(v.value1.value0.value0))($$eval(v.value1.value1.value0)));
       };
-      return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("no reachable bb"));
+      return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("invalid let*"));
   };
-
-  // FIXME: 関数わける必要ないかも
   var evalDef = function (v) {
       if (v instanceof Data_List_Types.Cons && (v.value0 instanceof Types.MalSymbol && (v.value0.value0 === "def!" && v.value1 instanceof Data_List_Types.Nil))) {
           return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("invalid def!"));
       };
       if (v instanceof Data_List_Types.Cons && (v.value0 instanceof Types.MalSymbol && (v.value0.value0 === "def!" && (v.value1 instanceof Data_List_Types.Cons && (v.value1.value0 instanceof Types.MalSymbol && (v.value1.value1 instanceof Data_List_Types.Cons && v.value1.value1.value1 instanceof Data_List_Types.Nil)))))) {
           return Control_Bind.bind(Env.bindMalEnv)(evalAst(v.value1.value1.value0))(function (evd) {
-              return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.set(v.value1.value0.value0)(evd))(function () {
+              return Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(Env.setVar(v.value1.value0.value0)(evd))(function () {
                   return Control_Applicative.pure(Env.applicativeMalEnv)(evd);
               });
           });
       };
-      return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("no reachable aa"));
+      return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("invalid def!"));
   };
   var evalAst = function (v) {
       if (v instanceof Types.MalSymbol) {
           return Control_Bind.bind(Env.bindMalEnv)(Control_Monad_Reader_Class.ask(Env.monadAskMalEnv))(function (ref) {
-              return Control_Bind.bind(Env.bindMalEnv)(Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Ref.read(ref)))(function (es) {
-                  var v1 = Env.get(v.value0)(es);
+              return Control_Bind.bind(Env.bindMalEnv)(Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Ref.read(ref)))(function (envs) {
+                  var v1 = Env.getVar(v.value0)(envs);
                   if (v1 instanceof Data_Maybe.Just) {
                       return Control_Applicative.pure(Env.applicativeMalEnv)(v1.value0);
                   };
                   if (v1 instanceof Data_Maybe.Nothing) {
                       return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("'" + (v.value0 + ("'" + " not found"))));
                   };
-                  throw new Error("Failed pattern match at Main (line 53, column 3 - line 55, column 68): " + [ v1.constructor.name ]);
+                  throw new Error("Failed pattern match at Main (line 51, column 3 - line 53, column 68): " + [ v1.constructor.name ]);
               });
           });
       };
@@ -20096,7 +20081,6 @@ var PS = {};
   };
 
   // EVAL
-  // FIXME: let*
   var $$eval = function (v) {
       if (v instanceof Types.MalList && v.value0 instanceof Data_List_Types.Nil) {
           return Control_Applicative.pure(Env.applicativeMalEnv)(v);
@@ -20112,7 +20096,7 @@ var PS = {};
               if (es instanceof Data_List_Types.Cons && es.value0 instanceof Types.MalFunction) {
                   return Effect_Class.liftEffect(Env.monadEffectMalEnv)(es.value0.value0.fn(es.value1));
               };
-              return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("no reachable ??"));
+              return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("invalid function"));
           });
       };
       return evalAst(v);
@@ -20125,11 +20109,9 @@ var PS = {};
           return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Exception["throw"]("EOF"));
       };
       if (v instanceof Data_Either.Right) {
-          return Control_Bind.bind(Env.bindMalEnv)($$eval(v.value0))(function (result) {
-              return Control_Applicative.pure(Env.applicativeMalEnv)(print(result));
-          });
+          return Data_Functor.map(Env.functorMalEnv)(print)($$eval(v.value0));
       };
-      throw new Error("Failed pattern match at Main (line 112, column 11 - line 116, column 24): " + [ v.constructor.name ]);
+      throw new Error("Failed pattern match at Main (line 93, column 11 - line 95, column 34): " + [ v.constructor.name ]);
   };
   var loop = Control_Bind.bind(Env.bindMalEnv)(Effect_Class.liftEffect(Env.monadEffectMalEnv)(Readline.readLine))(function (line) {
       if (line === ":q") {
@@ -20143,7 +20125,7 @@ var PS = {};
               if (result instanceof Data_Either.Left) {
                   return Effect_Class.liftEffect(Env.monadEffectMalEnv)(Effect_Console.error(Data_Show.show(Effect_Exception.showError)(result.value0)));
               };
-              throw new Error("Failed pattern match at Main (line 126, column 7 - line 128, column 51): " + [ result.constructor.name ]);
+              throw new Error("Failed pattern match at Main (line 105, column 7 - line 107, column 51): " + [ result.constructor.name ]);
           })())(function () {
               return loop;
           });
@@ -20152,7 +20134,7 @@ var PS = {};
 
   //
   var main = function __do() {
-      var ref = Effect_Class.liftEffect(Effect_Class.monadEffectEffect)(Env.make)();
+      var ref = Effect_Class.liftEffect(Effect_Class.monadEffectEffect)(Env.initEnvRef)();
       return Data_Function.flip(Env.runMalEnv)(ref)(Control_Bind.discard(Control_Bind.discardUnit)(Env.bindMalEnv)(setArithOp)(function () {
           return loop;
       }))();

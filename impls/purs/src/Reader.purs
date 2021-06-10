@@ -1,4 +1,4 @@
-module Mal.Reader where
+module Mal.Reader (readStr) where
 
 import Prelude
 
@@ -47,9 +47,8 @@ nonEscape = do
   pure $ n : Nil
 
 
-----------------------------------------------------------------
--- reader atom
-----------------------------------------------------------------
+
+-- ATOM
 
 readNumber :: Parser String MalExpr
 readNumber = MalInt <$> nat
@@ -86,7 +85,7 @@ readAtom = readNumber
 
 
 
-----------------------------------------------------------------
+--
 
 readList :: Parser String MalExpr
 readList = fix $ \_ ->
@@ -94,7 +93,7 @@ readList = fix $ \_ ->
 
 
 
-----------------------------------------------------------------
+--
 
 readVector :: Parser String MalExpr
 readVector = fix $ \_ ->
@@ -102,7 +101,7 @@ readVector = fix $ \_ ->
 
 
 
-----------------------------------------------------------------
+--
 
 readHashMap :: Parser String MalExpr
 readHashMap = do
@@ -115,9 +114,7 @@ readHashMap = do
 
 
 
-----------------------------------------------------------------
--- reader macros
-----------------------------------------------------------------
+-- MACROS
 
 macro :: String -> String -> Parser String MalExpr
 macro tok sym = addPrefix sym <$> (string tok *> readForm)
@@ -142,7 +139,7 @@ readMacro =
 
 
 
-----------------------------------------------------------------
+--
 
 readForm :: Parser String MalExpr
 readForm =
@@ -156,8 +153,7 @@ readForm =
 
 
 
-----------------------------------------------------------------
-
+--
 
 -- FIXME: 何もやってない感がすごい
 readStr :: String -> Either String MalExpr

@@ -4,8 +4,7 @@ You can edit this file as you like.
 -}
 { name = "my-project"
 , dependencies =
-  [ "aff"
-  , "arrays"
+  [ "arrays"
   , "console"
   , "control"
   , "effect"
@@ -15,7 +14,6 @@ You can edit this file as you like.
   , "integers"
   , "lists"
   , "maybe"
-  , "node-readline"
   , "ordered-collections"
   , "parsing"
   , "prelude"

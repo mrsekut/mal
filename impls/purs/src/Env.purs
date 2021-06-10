@@ -17,77 +17,82 @@ import Types (MalExpr)
 
 type Env = Map String MalExpr
 type EnvRef = Ref.Ref (List Env)
-
 newtype MalEnv a = MalEnv (ReaderT EnvRef Effect a)
-derive newtype instance bindMalEnv ∷ Bind MalEnv
-derive newtype instance monadAskMalEnv :: MonadAsk EnvRef MalEnv
+
 derive newtype instance functorMalEnv :: Functor MalEnv
+derive newtype instance applyMalEnv :: Apply MalEnv
 derive newtype instance applicativeMalEnv :: Applicative MalEnv
+derive newtype instance bindMalEnv ∷ Bind MalEnv
+
+derive newtype instance monadAskMalEnv :: MonadAsk EnvRef MalEnv
 derive newtype instance monadEffectMalEnv :: MonadEffect MalEnv
--- derive newtype instance monadtMalEnv :: Monad MalEnv
-
--- derive newtype instance monadtMalEnv :: Monad MalEnv
 derive newtype instance monadThrowMalEnv :: MonadThrow Error MalEnv
-
--- instance monadThrowMalEnv :: MonadThrow Error MalEnv where
---   throwError = liftEffect <<< throwException
-
 derive newtype instance monadErrorMalEnv :: MonadError Error MalEnv
---   catchError (MalEnv e) h = MalEnv e
 
 
-get :: String -> List Env -> Maybe MalExpr
-get k es = case find k es of
-    Just e  -> lookup k e
-    Nothing -> Nothing
 
-
-find :: String -> List Env -> Maybe Env
-find _ Nil       = Nothing
-find k (e:outer) =
-  if member k e
-    then Just e
-    else find k outer
-
-
-set :: String -> MalExpr -> MalEnv Unit
-set k e = do
-  ref <- ask
-  env <- liftEffect $ Ref.read ref
-  liftEffect $ Ref.write (update k e env) ref
-
-
-update :: String -> MalExpr -> List Env -> List Env
-update _ _ Nil         = Nil
-update k e (env:outer) = (insert k e env):outer
-
-
-newEnv :: MalEnv Unit
-newEnv = do
-  ref <- ask
-  es <- liftEffect $ Ref.read ref
-  liftEffect $ Ref.write (initEnv:es) ref
-
-
-deleteEnv :: MalEnv Unit
-deleteEnv = do
-  ref <- ask
-  ees <- liftEffect $ Ref.read ref
-  case tail ees of
-    Just es -> liftEffect $ Ref.write es ref
-    Nothing -> liftEffect $ Ref.write ees ref
-
-
--- local :: () -> MalEnv MalExpr
-
-make :: Effect EnvRef
-make = Ref.new $ initEnv:Nil
-
-
-initEnv :: Env
-initEnv = fromFoldable Nil
+initEnvRef :: Effect EnvRef
+initEnvRef = Ref.new $ initEnv:Nil
 
 
 runMalEnv :: ∀ m. MalEnv m -> EnvRef -> Effect m
 runMalEnv (MalEnv m) = runReaderT m
 
+
+
+-- Environment
+
+initEnv :: Env
+initEnv = fromFoldable Nil
+
+
+newEnv :: MalEnv Unit
+newEnv = do
+  ref <- ask
+  envs <- liftEffect $ Ref.read ref
+  liftEffect $ Ref.write (initEnv:envs) ref
+
+
+deleteEnv :: MalEnv Unit
+deleteEnv = do
+  ref <- ask
+  envs <- liftEffect $ Ref.read ref
+  case tail envs of
+    Just es -> liftEffect $ Ref.write es ref
+    Nothing -> liftEffect $ Ref.write envs ref
+
+
+local :: ∀ a. MalEnv a -> MalEnv a
+local cb = do
+  newEnv
+  result <- cb
+  deleteEnv
+  pure result
+
+
+
+-- VARIABLE
+
+get :: String -> List Env -> Maybe MalExpr
+get ky envs = case find ky envs of
+    Just ex -> lookup ky ex
+    Nothing -> Nothing
+  where
+
+  find :: String -> List Env -> Maybe Env
+  find _ Nil       = Nothing
+  find ky' (env:outer)
+    | member ky' env = Just env
+    | otherwise      = find ky' outer
+
+
+set :: String -> MalExpr -> MalEnv Unit
+set ky ex = do
+  ref <- ask
+  env <- liftEffect $ Ref.read ref
+  liftEffect $ Ref.write (update ky ex env) ref
+  where
+
+  update :: String -> MalExpr -> List Env -> List Env
+  update _ _ Nil             = Nil
+  update ky' ex' (env:outer) = (insert ky' ex' env):outer
