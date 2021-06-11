@@ -17,6 +17,7 @@ import Effect.Exception (Error)
 import Effect.Ref as Ref
 
 
+
 data MalExpr
   = MalNil
   | MalBoolean Boolean
@@ -29,9 +30,22 @@ data MalExpr
   | MalHashMap (Map Key MalExpr)
   | MalFunction { fn :: MalFn , params :: List String }
 
+instance eqMalExpr :: Eq MalExpr where
+  eq MalNil MalNil                 = true
+  eq (MalBoolean a) (MalBoolean b) = a == b
+  eq (MalInt a) (MalInt b)         = a == b
+  eq (MalString a) (MalString b)   = a == b
+  eq (MalSymbol a) (MalSymbol b)   = a == b
+  eq (MalList a) (MalList b)       = a == b
+  eq (MalVector a) (MalVector b)   = a == b
+  eq (MalHashMap a) (MalHashMap b) = a == b
+  eq _ _                           = false
+
+
 
 data Key = StringKey String
          | KeywordKey String
+
 derive instance eqKey :: Eq Key
 derive instance ordKey :: Ord Key
 

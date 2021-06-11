@@ -88,7 +88,9 @@ readKeyword =
 readSymbol :: Parser String MalExpr
 readSymbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
   where
-  f first rest = g $ charListToString (first : rest)
+
+  f first rest = g $ charListToString (first:rest)
+
   g "true"  = MalBoolean true
   g "false" = MalBoolean false
   g "nil"   = MalNil
@@ -119,6 +121,7 @@ readHashMap = do
   g <$> keyValuePairs
     <$> (fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}')
   where
+
   g :: Maybe (List (Tuple Key MalExpr)) -> MalExpr
   g (Just ts) = MalHashMap $ listToMap ts
   g Nothing   = MalString "hash map error" -- FIXME: error
@@ -136,9 +139,11 @@ readMacro = fix $ \_ ->
   <|> macro "@" "deref"
   <|> readWithMeta
 
+
 macro :: String -> String -> Parser String MalExpr
 macro tok sym = addPrefix sym <$> (string tok *> readForm)
   where
+
   addPrefix :: String -> MalExpr -> MalExpr
   addPrefix s x = toList $ MalSymbol s : x : Nil
 
@@ -146,6 +151,7 @@ macro tok sym = addPrefix sym <$> (string tok *> readForm)
 readWithMeta :: Parser String MalExpr
 readWithMeta = addPrefix <$> (char '^' *> readForm) <*> readForm
   where
+
   addPrefix :: MalExpr -> MalExpr -> MalExpr
   addPrefix m x = toList $ MalSymbol "with-meta" : x : m : Nil
 

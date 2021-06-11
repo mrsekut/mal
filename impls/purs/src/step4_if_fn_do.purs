@@ -4,10 +4,12 @@ import Prelude
 
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader.Class (ask)
+import Core as Core
 import Data.Either (Either(..))
 import Data.List (List(..), foldM, (:))
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
+import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Effect.Console (error, log)
@@ -148,20 +150,8 @@ loop = do
       loop
 
 
-setArithOp :: MalEnv Unit
-setArithOp = do
-  Env.set "+" $ fn (+)
-  Env.set "-" $ fn (-)
-  Env.set "*" $ fn (*)
-  Env.set "/" $ fn (/)
-  where
-
-  fn :: (Int -> Int -> Int) -> MalExpr
-  fn op = MalFunction $ { fn : g op, params : Nil }
-    where
-    g :: (Int -> Int -> Int) -> MalFn
-    g op' ((MalInt n1) : (MalInt n2) : Nil) = pure $ MalInt $ op' n1 n2
-    g _ _                                   = throwStr "invalid operator"
+setFn :: Tuple String MalFn -> MalEnv Unit
+setFn (Tuple sym f) = Env.set sym $ MalFunction { fn : f, params : Nil }
 
 
 
@@ -170,6 +160,7 @@ setArithOp = do
 main :: Effect Unit
 main = do
   ref <- liftEffect Env.initEnvRef
-  flip Env.runMalEnv ref do
-    setArithOp
-    loop
+  flip Env.runMalEnv ref $
+       traverse setFn Core.ns
+    *> rep "(def! not (fn* (a) (if a false true)))"
+    *> loop
