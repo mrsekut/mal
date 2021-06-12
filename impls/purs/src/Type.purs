@@ -6,10 +6,11 @@ import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Reader.Class (class MonadAsk)
 import Control.Monad.Reader.Trans (ReaderT)
 import Data.Array as Array
-import Data.List (List(..), (:))
+import Data.List (List(..), foldr, (:))
+import Data.List as List
 import Data.Map (Map)
 import Data.Map.Internal as Map
-import Data.String.CodeUnits (fromCharArray)
+import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Class (class MonadEffect)
@@ -35,8 +36,13 @@ instance eqMalExpr :: Eq MalExpr where
   eq (MalBoolean a) (MalBoolean b) = a == b
   eq (MalInt a) (MalInt b)         = a == b
   eq (MalString a) (MalString b)   = a == b
+  eq (MalKeyword a) (MalKeyword b) = a == b
   eq (MalSymbol a) (MalSymbol b)   = a == b
+
   eq (MalList a) (MalList b)       = a == b
+  eq (MalVector a) (MalList b)     = a == b
+  eq (MalList a) (MalVector b)     = a == b
+
   eq (MalVector a) (MalVector b)   = a == b
   eq (MalHashMap a) (MalHashMap b) = a == b
   eq _ _                           = false
@@ -69,6 +75,7 @@ derive newtype instance monadThrowMalEnv :: MonadThrow Error MalEnv
 derive newtype instance monadErrorMalEnv :: MonadError Error MalEnv
 
 
+
 -- Utils
 
 toList :: List MalExpr -> MalExpr
@@ -81,6 +88,14 @@ listToMap = Map.fromFoldable
 
 charListToString :: List Char -> String
 charListToString = fromCharArray <<< Array.fromFoldable
+
+
+stringToCharList :: String -> List Char
+stringToCharList = List.fromFoldable <<< toCharArray
+
+
+flatStrings :: List String -> String
+flatStrings = foldr (<>) ""
 
 
 flatTuples :: List (Tuple Key MalExpr) -> List MalExpr

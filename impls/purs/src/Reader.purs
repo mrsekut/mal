@@ -6,15 +6,14 @@ import Control.Alt ((<|>))
 import Control.Lazy (fix)
 import Data.Either (Either(..))
 import Data.Int (fromString)
-import Data.List (List(..), concat, many, (:))
+import Data.List (List(..), many, (:))
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Tuple (Tuple)
 import Printer (keyValuePairs)
 import Text.Parsing.Parser (Parser, runParser)
 import Text.Parsing.Parser.Combinators (endBy, skipMany, skipMany1, try)
 import Text.Parsing.Parser.String (char, noneOf, oneOf, string)
 import Text.Parsing.Parser.Token (digit, letter)
-import Types (Key, MalExpr(..), charListToString, listToMap, toList)
+import Types (MalExpr(..), charListToString, listToMap, toList)
 
 
 spaces :: Parser String Unit
@@ -40,17 +39,16 @@ nat = do
   pure <<< fromMaybe 0 <<< fromString <<< charListToString $ first : rest
 
 
-escape :: Parser String (List Char)
-escape = do
-  b <- char '\\'
-  c <- oneOf [ '\"', '\\', 'n' ]
-  pure $ b : c : Nil
+escape :: Parser String Char
+escape = char '\\'
+      *> oneOf ['\\', '\"', 'n']
+     <#> case _ of
+          'n' -> '\n'
+          x   -> x
 
 
-nonEscape :: Parser String (List Char)
-nonEscape = do
-  n <- noneOf [ '\"', '\\' ]
-  pure $ n : Nil
+nonEscape :: Parser String Char
+nonEscape =  noneOf [ '\"', '\\' ]
 
 
 
@@ -73,9 +71,7 @@ readNegativeNumber = MalInt <<< negate <$> (char '-' *> nat)
 
 
 readString :: Parser String MalExpr
-readString = MalString
-         <<< charListToString
-         <$> (char '"' *> (concat <$> many (escape <|> nonEscape)) <* char '"')
+readString = MalString <$> charListToString <$> (char '"' *> many (escape <|> nonEscape) <* char '"')
 
 
 readKeyword :: Parser String MalExpr
@@ -117,14 +113,11 @@ readVector = fix $ \_ ->
 --
 
 readHashMap :: Parser String MalExpr
-readHashMap = do
-  g <$> keyValuePairs
-    <$> (fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}')
-  where
-
-  g :: Maybe (List (Tuple Key MalExpr)) -> MalExpr
-  g (Just ts) = MalHashMap $ listToMap ts
-  g Nothing   = MalString "hash map error" -- FIXME: error
+readHashMap = fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}'
+    <#> keyValuePairs
+    <#> case _ of
+      Just ts -> MalHashMap $ listToMap ts
+      Nothing -> MalString "hash map error" -- FIXME: error
 
 
 

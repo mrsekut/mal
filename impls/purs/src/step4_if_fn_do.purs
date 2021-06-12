@@ -39,7 +39,7 @@ eval (MalList ast)     = case ast of
   MalSymbol "let*" : es -> evalLet es
   MalSymbol "do" : es   -> evalDo es
   MalSymbol "if" : es   -> evalIf es
-  MalSymbol "fn*" : es  -> evalFn es
+  MalSymbol "fn*" : es  -> evalFnMatch es
   _                     -> do
     es <- traverse evalAst ast
     case es of
@@ -101,8 +101,14 @@ evalDo :: List MalExpr -> MalEnv MalExpr
 evalDo es = foldM (const evalAst) MalNil es
 
 
-evalFn :: List MalExpr -> MalEnv MalExpr
-evalFn (MalList params : body : Nil) = do
+evalFnMatch :: List MalExpr -> MalEnv MalExpr
+evalFnMatch (MalList params : body : Nil)   = evalFn params body
+evalFnMatch (MalVector params : body : Nil) = evalFn params body
+evalFnMatch _                               = throwStr "invalid fn*"
+
+
+evalFn :: List MalExpr -> MalExpr -> MalEnv MalExpr
+evalFn params body = do
   strParams <- traverse unwrapSymbol params
   pure $ MalFunction { fn : fn strParams body, params : strParams }
   where
@@ -113,12 +119,10 @@ evalFn (MalList params : body : Nil) = do
     if ok
       then evalAst body'
       else throwStr "actual parameters do not match signature "
-evalFn _                             = throwStr "invalid fn*"
 
-
-unwrapSymbol :: MalExpr -> MalEnv String
-unwrapSymbol (MalSymbol s) = pure s
-unwrapSymbol _             = throwStr "fn* parameter must be symbols"
+  unwrapSymbol :: MalExpr -> MalEnv String
+  unwrapSymbol (MalSymbol s) = pure s
+  unwrapSymbol _             = throwStr "fn* parameter must be symbols"
 
 
 
