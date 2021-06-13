@@ -2,14 +2,17 @@ module Core (ns) where
 
 import Prelude
 
+import Data.Either (Either(..))
 import Data.List (List(..), fromFoldable, (:), length)
 import Data.Tuple (Tuple(..))
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Env (throwStr)
+import Mal.Reader (readStr)
+import Node.Encoding (Encoding(..))
+import Node.FS.Sync (readTextFile)
 import Printer (printListReadably, printList)
 import Types (MalExpr(..), MalFn, toList)
-
 
 
 
@@ -29,6 +32,8 @@ ns = fromFoldable
   , Tuple "str"         str
   , Tuple "prn"         prn
   , Tuple "println"     println
+  , Tuple "slurp"       slurp
+  , Tuple "read-string" readString
 
   , Tuple "list"        list
   , Tuple "list?"       $ pred1 listQ
@@ -88,6 +93,18 @@ println :: MalFn
 println args = liftEffect $ do
   log $ printListReadably " " args
   pure MalNil
+
+
+slurp :: MalFn
+slurp (MalString path : Nil) = MalString <$> liftEffect (readTextFile UTF8 path)
+slurp _                      = throwStr "invalid arguments to slurp"
+
+
+readString :: MalFn
+readString (MalString s : Nil) = case readStr s of
+  Left _    -> throwStr "invalid read-string"
+  Right val ->  pure val
+readString _                   = throwStr "invalid read-string"
 
 
 

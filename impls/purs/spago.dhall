@@ -14,6 +14,8 @@ You can edit this file as you like.
   , "integers"
   , "lists"
   , "maybe"
+  , "node-buffer"
+  , "node-fs"
   , "ordered-collections"
   , "parsing"
   , "prelude"
