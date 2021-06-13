@@ -85,12 +85,12 @@ readSymbol :: Parser String MalExpr
 readSymbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
   where
 
-  f first rest = g $ charListToString (first:rest)
-
-  g "true"  = MalBoolean true
-  g "false" = MalBoolean false
-  g "nil"   = MalNil
-  g s       = MalSymbol s
+  f first rest = charListToString (first:rest)
+    # case _ of
+      "true"  -> MalBoolean true
+      "false" -> MalBoolean false
+      "nil"   -> MalNil
+      s       -> MalSymbol s
 
 
 
