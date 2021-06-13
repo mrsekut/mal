@@ -107,10 +107,11 @@ evalFnMatch (MalVector params : body : Nil) = evalFn params body
 evalFnMatch _                               = throwStr "invalid fn*"
 
 
+-- FIXME: ( ( (fn* (a) (fn* (b) (+ a b))) 5) 7)
 evalFn :: List MalExpr -> MalExpr -> MalEnv MalExpr
 evalFn params body = do
-  strParams <- traverse unwrapSymbol params
-  pure $ MalFunction { fn : fn strParams body, params : strParams }
+  paramsStr <- traverse unwrapSymbol params
+  pure $ MalFunction { fn : fn paramsStr body, params : paramsStr }
   where
 
   fn :: List String -> MalExpr -> MalFn

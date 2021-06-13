@@ -10,7 +10,7 @@ import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Types (EnvRef, MalEnv(..), MalExpr, Env)
+import Types (Env, EnvRef, MalEnv(..), MalExpr, toList)
 
 
 initEnvRef :: Effect EnvRef
@@ -70,6 +70,7 @@ get ky envs = case find ky envs of
 
 sets :: List String -> List MalExpr -> MalEnv Boolean
 sets Nil Nil           = pure true
+sets ("&":k:Nil) exs   = set k (toList exs) *> pure true
 sets (ky:kys) (ex:exs) = set ky ex *> sets kys exs
 sets _ _               = pure false
 
@@ -77,8 +78,8 @@ sets _ _               = pure false
 set :: String -> MalExpr -> MalEnv Unit
 set ky ex = do
   ref <- ask
-  env <- liftEffect $ Ref.read ref
-  liftEffect $ Ref.write (update ky ex env) ref
+  envs <- liftEffect $ Ref.read ref
+  liftEffect $ Ref.write (update ky ex envs) ref
   where
 
   update :: String -> MalExpr -> List Env -> List Env

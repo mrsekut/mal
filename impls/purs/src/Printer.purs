@@ -10,6 +10,8 @@ import Types (Key(..), MalExpr(..), flatTuples, flatStrings, stringToCharList)
 import Data.String.CodeUnits(singleton)
 
 
+-- PRINT STRING
+
 printStr :: MalExpr -> String
 printStr MalNil           = "nil"
 printStr (MalBoolean b)   = show b
@@ -23,6 +25,15 @@ printStr (MalHashMap hm)  = "{" <> (hm # toUnfoldable # flatTuples # printList) 
 printStr (MalFunction _)  = "#<function>"
 
 
+printList :: List MalExpr -> String
+printList Nil     = ""
+printList (x:Nil) = printStr x
+printList (x:xs)  = printStr x <> " " <> printList xs
+
+
+
+-- PRINT STRING READABLY
+
 printStrReadably :: MalExpr -> String
 printStrReadably (MalString str)  = str
 printStrReadably (MalList xs)     = "(" <> printListReadably " " xs <> ")"
@@ -31,23 +42,20 @@ printStrReadably (MalHashMap hm)  = "{" <> (hm # toUnfoldable # flatTuples # pri
 printStrReadably ex               = printStr ex
 
 
+printListReadably :: String -> List MalExpr ->  String
+printListReadably _ Nil      = ""
+printListReadably _ (x:Nil)  = printStrReadably x
+printListReadably sep (x:xs) = printStrReadably x <> sep <> printListReadably sep xs
+
+
+
+-- UTILS
+
 unescape :: Char -> String
 unescape '\n' = "\\n"
 unescape '\\' = "\\\\"
 unescape '"'  = "\\\""
 unescape c    = singleton c
-
-
-printList :: List MalExpr -> String
-printList Nil     = ""
-printList (x:Nil) = printStr x
-printList (x:xs)  = printStr x <> " " <> printList xs
-
-
-printListReadably :: String -> List MalExpr ->  String
-printListReadably _ Nil      = ""
-printListReadably _ (x:Nil)  = printStrReadably x
-printListReadably sep (x:xs) = printStrReadably x <> sep <> printListReadably sep xs
 
 
 keyValuePairs :: List MalExpr -> Maybe (List (Tuple Key MalExpr))
