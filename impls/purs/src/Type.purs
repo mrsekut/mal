@@ -31,7 +31,7 @@ data MalExpr
   | MalHashMap (Map Key MalExpr)
   | MalFunction { fn :: MalFn , params :: List String }
 
-instance eqMalExpr :: Eq MalExpr where
+instance Eq MalExpr where
   eq MalNil MalNil                 = true
   eq (MalBoolean a) (MalBoolean b) = a == b
   eq (MalInt a) (MalInt b)         = a == b
@@ -52,8 +52,8 @@ instance eqMalExpr :: Eq MalExpr where
 data Key = StringKey String
          | KeywordKey String
 
-derive instance eqKey :: Eq Key
-derive instance ordKey :: Ord Key
+derive instance Eq Key
+derive instance Ord Key
 
 
 type MalFn = List MalExpr -> MalEnv MalExpr
@@ -63,16 +63,16 @@ type Env = Map String MalExpr
 type EnvRef = Ref.Ref (List Env)
 newtype MalEnv a = MalEnv (ReaderT EnvRef Effect a)
 
-derive newtype instance functorMalEnv :: Functor MalEnv
-derive newtype instance applyMalEnv :: Apply MalEnv
-derive newtype instance applicativeMalEnv :: Applicative MalEnv
-derive newtype instance bindMalEnv ∷ Bind MalEnv
-derive newtype instance monadMalEnv ∷ Monad MalEnv
+derive newtype instance Functor MalEnv
+derive newtype instance Apply MalEnv
+derive newtype instance Applicative MalEnv
+derive newtype instance Bind MalEnv
+derive newtype instance Monad MalEnv
 
-derive newtype instance monadAskMalEnv :: MonadAsk EnvRef MalEnv
-derive newtype instance monadEffectMalEnv :: MonadEffect MalEnv
-derive newtype instance monadThrowMalEnv :: MonadThrow Error MalEnv
-derive newtype instance monadErrorMalEnv :: MonadError Error MalEnv
+derive newtype instance MonadAsk EnvRef MalEnv
+derive newtype instance MonadEffect MalEnv
+derive newtype instance MonadThrow Error MalEnv
+derive newtype instance MonadError Error MalEnv
 
 
 
