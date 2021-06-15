@@ -12,6 +12,7 @@ You can edit this file as you like.
   , "exceptions"
   , "foldable-traversable"
   , "integers"
+  , "lazy"
   , "lists"
   , "maybe"
   , "node-buffer"

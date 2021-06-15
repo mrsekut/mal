@@ -164,7 +164,6 @@ readForm = fix $ \_ -> ignored
 
 --
 
--- FIXME: 何もやってない感がすごい
 readStr :: String -> Either String MalExpr
 readStr str = case runParser str readForm of
   Left err  -> Left $ show err

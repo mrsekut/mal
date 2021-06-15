@@ -8,7 +8,7 @@ import Control.Monad.Reader.Trans (ReaderT)
 import Data.Array as Array
 import Data.List (List(..), foldr, (:))
 import Data.List as List
-import Data.Map (Map)
+import Data.Map (Map, toUnfoldable)
 import Data.Map.Internal as Map
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Data.Tuple (Tuple(..))
@@ -16,6 +16,7 @@ import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
 import Effect.Ref as Ref
+import Data.String.CodeUnits(singleton)
 
 
 
@@ -46,7 +47,6 @@ instance Eq MalExpr where
   eq (MalVector a) (MalVector b)   = a == b
   eq (MalHashMap a) (MalHashMap b) = a == b
   eq _ _                           = false
-
 
 
 data Key = StringKey String
@@ -102,3 +102,42 @@ flatTuples :: List (Tuple Key MalExpr) -> List MalExpr
 flatTuples ((Tuple (StringKey a) b) : xs)  = MalString a : b : flatTuples xs
 flatTuples ((Tuple (KeywordKey a) b) : xs) = MalKeyword a : b : flatTuples xs
 flatTuples _                               = Nil
+
+
+
+
+
+
+
+
+
+
+
+
+instance Show MalExpr where
+  show = printStr
+
+printStr :: MalExpr -> String
+printStr MalNil           = "nil"
+printStr (MalBoolean b)   = show b
+printStr (MalInt n)       = show n
+printStr (MalString str)  = "\"" <> (str # stringToCharList # map unescape # flatStrings) <> "\""
+printStr (MalKeyword key) = key
+printStr (MalSymbol name) = name
+printStr (MalList xs)     = "(" <> printList xs <> ")"
+printStr (MalVector vs)   = "[" <> printList vs <> "]"
+printStr (MalHashMap hm)  = "{" <> (hm # toUnfoldable # flatTuples # printList) <> "}"
+printStr (MalFunction _)  = "#<function>"
+
+
+printList :: List MalExpr -> String
+printList Nil     = ""
+printList (x:Nil) = printStr x
+printList (x:xs)  = printStr x <> " " <> printList xs
+
+unescape :: Char -> String
+unescape '\n' = "\\n"
+unescape '\\' = "\\\\"
+unescape '"'  = "\\\""
+unescape c    = singleton c
+

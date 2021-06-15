@@ -6,7 +6,7 @@ import Control.Monad.Error.Class (try)
 import Control.Monad.Reader.Class (ask)
 import Core as Core
 import Data.Either (Either(..))
-import Data.List (List(..), foldM, (:))
+import Data.List (List(..), foldM, length, (:))
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
@@ -111,15 +111,43 @@ evalFnMatch _                               = throwStr "invalid fn*"
 evalFn :: List MalExpr -> MalExpr -> MalEnv MalExpr
 evalFn params body = do
   paramsStr <- traverse unwrapSymbol params
-  pure $ MalFunction { fn : fn paramsStr body, params : paramsStr }
+  liftEffect $ log $ show "=====fn========"
+  f <- fn paramsStr body
+  pure $ MalFunction { fn : f, params : paramsStr }
   where
 
-  fn :: List String -> MalExpr -> MalFn
-  fn params' body' = \args -> Env.local do
-    ok <- Env.sets params' args
-    if ok
-      then evalAst body'
-      else throwStr "actual parameters do not match signature "
+  fn :: List String -> MalExpr -> MalEnv MalFn
+  fn params' body' = do
+    ref <- ask
+    envs1 <- liftEffect $ Ref.read ref
+    -- liftEffect $ log $ "kore1: " <> (show $ length envs1)
+
+    pure $ \args -> do
+      ref <- ask
+      env2 <- liftEffect $ Ref.read ref
+      Env.newEnv
+      ok <- Env.sets params' args
+      -- Env.deleteEnv
+      r <- if ok
+        then evalAst body'
+        else throwStr "actual parameters do not match signature "
+
+      liftEffect $ log $ "kore1: " <> (show $ length envs1)
+      liftEffect $ log $ "kore2: " <> (show $ length env2)
+      liftEffect $ log $ show r
+
+      case r of
+        MalFunction _ -> pure unit
+        _             -> if length envs1 == length env2
+          then pure unit
+          else Env.deleteEnv
+      -- Env.deleteEnv
+      pure r
+  -- fn params' body' = \args -> Env.local do
+  --   ok <- Env.sets params' args
+  --   if ok
+  --     then evalAst body'
+  --     else throwStr "actual parameters do not match signature "
 
   unwrapSymbol :: MalExpr -> MalEnv String
   unwrapSymbol (MalSymbol s) = pure s

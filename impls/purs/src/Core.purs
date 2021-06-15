@@ -18,6 +18,11 @@ import Types (MalExpr(..), MalFn, toList)
 
 ns :: List (Tuple String MalFn)
 ns = fromFoldable
+  -- [ Tuple "="           eqQ
+  -- , Tuple "+"           $ numOp (+)
+  -- , Tuple "-"           $ numOp (-)
+  -- ]
+
   [ Tuple "="           eqQ
   , Tuple "+"           $ numOp (+)
   , Tuple "-"           $ numOp (-)
@@ -146,6 +151,37 @@ count _                    = throwStr "non-sequence passed to count"
 
 -- Atom functions
 
+
+
+-- atom :: MalFn
+-- atom [val] = MalAtom (MetaData Nil) <$> liftIO (newIORef val)
+-- atom _ = throwStr "invalid atom call"
+
+
+-- atom_Q :: MalVal -> Bool
+-- atom_Q (MalAtom _ _) = True
+-- atom_Q _             = False
+
+
+-- deref :: Fn
+-- deref [MalAtom _ ref] = liftIO $ readIORef ref
+-- deref _ = throwStr "invalid deref call"
+
+
+-- reset_BANG :: Fn
+-- reset_BANG [MalAtom _ ref, val] = do
+--     liftIO $ writeIORef ref $ val
+--     return val
+-- reset_BANG _ = throwStr "invalid reset!"
+
+
+-- swap_BANG :: Fn
+-- swap_BANG (MalAtom _ ref : MalFunction {fn=f} : args) = do
+--     val <- liftIO $ readIORef ref
+--     new_val <- f (val : args)
+--     liftIO $ writeIORef ref new_val
+--     return new_val
+-- swap_BANG _ = throwStr "Illegal swap!"
 
 
 -- Utils
