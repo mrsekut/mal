@@ -1,4 +1,4 @@
-module Main4 where
+module Main where
 
 import Prelude
 
@@ -43,8 +43,8 @@ eval (MalList ast)     = case ast of
   _                     -> do
     es <- traverse evalAst ast
     case es of
-      (MalFunction {fn:f} : args) -> f args
-      _                           -> throwStr "invalid function"
+      MalFunction {fn:f} : args -> f args
+      _                         -> throwStr "invalid function"
 eval ast               = evalAst ast
 
 
