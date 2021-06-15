@@ -18,11 +18,6 @@ import Types (MalExpr(..), MalFn, toList)
 
 ns :: List (Tuple String MalFn)
 ns = fromFoldable
-  -- [ Tuple "="           eqQ
-  -- , Tuple "+"           $ numOp (+)
-  -- , Tuple "-"           $ numOp (-)
-  -- ]
-
   [ Tuple "="           eqQ
   , Tuple "+"           $ numOp (+)
   , Tuple "-"           $ numOp (-)

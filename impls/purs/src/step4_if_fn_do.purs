@@ -107,47 +107,33 @@ evalFnMatch (MalVector params : body : Nil) = evalFn params body
 evalFnMatch _                               = throwStr "invalid fn*"
 
 
--- FIXME: ( ( (fn* (a) (fn* (b) (+ a b))) 5) 7)
 evalFn :: List MalExpr -> MalExpr -> MalEnv MalExpr
 evalFn params body = do
   paramsStr <- traverse unwrapSymbol params
-  liftEffect $ log $ show "=====fn========"
   f <- fn paramsStr body
   pure $ MalFunction { fn : f, params : paramsStr }
   where
 
+
+  -- FIXME: 実装が歪
   fn :: List String -> MalExpr -> MalEnv MalFn
   fn params' body' = do
-    ref <- ask
-    envs1 <- liftEffect $ Ref.read ref
-    -- liftEffect $ log $ "kore1: " <> (show $ length envs1)
+    envs1 <- liftEffect =<< Ref.read <$> ask
 
     pure $ \args -> do
-      ref <- ask
-      env2 <- liftEffect $ Ref.read ref
+      envs2 <- liftEffect =<< Ref.read <$> ask
       Env.newEnv
       ok <- Env.sets params' args
-      -- Env.deleteEnv
       r <- if ok
         then evalAst body'
         else throwStr "actual parameters do not match signature "
 
-      liftEffect $ log $ "kore1: " <> (show $ length envs1)
-      liftEffect $ log $ "kore2: " <> (show $ length env2)
-      liftEffect $ log $ show r
-
       case r of
         MalFunction _ -> pure unit
-        _             -> if length envs1 == length env2
+        _             -> if length envs1 == length envs2
           then pure unit
           else Env.deleteEnv
-      -- Env.deleteEnv
       pure r
-  -- fn params' body' = \args -> Env.local do
-  --   ok <- Env.sets params' args
-  --   if ok
-  --     then evalAst body'
-  --     else throwStr "actual parameters do not match signature "
 
   unwrapSymbol :: MalExpr -> MalEnv String
   unwrapSymbol (MalSymbol s) = pure s

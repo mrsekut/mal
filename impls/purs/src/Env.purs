@@ -3,12 +3,11 @@ module Env where
 import Prelude
 
 import Control.Monad.Reader.Trans (ask, runReaderT)
-import Data.List (List(..), last, tail, (:))
+import Data.List (List(..), tail, (:))
 import Data.Map (fromFoldable, insert, lookup, member)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Console (log)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Types (Env, EnvRef, MalEnv(..), MalExpr, toList)
@@ -29,25 +28,10 @@ initEnv :: Env
 initEnv = fromFoldable Nil
 
 
-resetEnv :: MalEnv Unit
-resetEnv = do
-  ref <- ask
-  envs <- liftEffect $ Ref.read ref
-  case last envs of
-    Just e -> liftEffect $ Ref.write ( e:Nil ) ref
-    Nothing -> liftEffect $ Ref.write envs ref
-
-
-setEnv :: List Env -> MalEnv Unit
-setEnv env = do
-  ref <- ask
-  liftEffect $ Ref.write env ref
-
 newEnv :: MalEnv Unit
 newEnv = do
   ref <- ask
   envs <- liftEffect $ Ref.read ref
-  liftEffect $ log $ show "=====new========"
   liftEffect $ Ref.write (initEnv:envs) ref
 
 
@@ -55,7 +39,6 @@ deleteEnv :: MalEnv Unit
 deleteEnv = do
   ref <- ask
   envs <- liftEffect $ Ref.read ref
-  liftEffect $ log $ show "=====delte========"
   case tail envs of
     Just es -> liftEffect $ Ref.write es ref
     Nothing -> liftEffect $ Ref.write envs ref
@@ -97,10 +80,6 @@ set ky ex = do
   ref <- ask
   envs <- liftEffect $ Ref.read ref
   liftEffect $ Ref.write (update ky ex envs) ref
-  ref <- ask
-  envs <- liftEffect $ Ref.read ref
-  liftEffect $ log $ show "=====set========"
-  liftEffect $ log $ show envs
   where
 
   update :: String -> MalExpr -> List Env -> List Env
