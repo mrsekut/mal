@@ -5,48 +5,51 @@ import Prelude
 import Data.List (List(..), (:))
 import Data.Map (toUnfoldable)
 import Data.Maybe (Maybe(..))
+import Data.String.CodeUnits (singleton)
 import Data.Tuple (Tuple(..))
+import Effect (Effect)
+import Effect.Ref as Ref
 import Types (Key(..), MalExpr(..), flatTuples, flatStrings, stringToCharList)
-import Data.String.CodeUnits(singleton)
 
 
 
 -- PRINT STRING
 
-printStr :: MalExpr -> String
-printStr MalNil           = "nil"
-printStr (MalBoolean b)   = show b
-printStr (MalInt n)       = show n
-printStr (MalString str)  = "\"" <> (str # stringToCharList # map unescape # flatStrings) <> "\""
-printStr (MalKeyword key) = key
-printStr (MalSymbol name) = name
-printStr (MalList xs)     = "(" <> printList xs <> ")"
-printStr (MalVector vs)   = "[" <> printList vs <> "]"
-printStr (MalHashMap hm)  = "{" <> (hm # toUnfoldable # flatTuples # printList) <> "}"
-printStr (MalFunction _)  = "#<function>"
+printStr :: MalExpr -> Effect String
+printStr MalNil           = pure "nil"
+printStr (MalBoolean b)   = pure $ show b
+printStr (MalInt n)       = pure $ show n
+printStr (MalString str)  = pure $ "\"" <> (str # stringToCharList # map unescape # flatStrings) <> "\""
+printStr (MalKeyword key) = pure key
+printStr (MalAtom r)      = "(atom " <<> (Ref.read r >>= printStr) <>> ")"
+printStr (MalSymbol name) = pure name
+printStr (MalList xs)     = "(" <<> printList xs <>> ")"
+printStr (MalVector vs)   = "[" <<> printList vs <>> "]"
+printStr (MalHashMap hm)  = "{" <<> (hm # toUnfoldable # flatTuples # printList) <>> "}"
+printStr (MalFunction _)  = pure "#<function>"
 
 
-printList :: List MalExpr -> String
-printList Nil     = ""
+printList :: List MalExpr -> Effect String
+printList Nil     = pure ""
 printList (x:Nil) = printStr x
-printList (x:xs)  = printStr x <> " " <> printList xs
+printList (x:xs)  = printStr x <> pure " " <> printList xs
 
 
 
 -- PRINT STRING READABLY
 
-printStrReadably :: MalExpr -> String
-printStrReadably (MalString str)  = str
-printStrReadably (MalList xs)     = "(" <> printListReadably " " xs <> ")"
-printStrReadably (MalVector vs)   = "[" <> printListReadably " " vs <> "]"
-printStrReadably (MalHashMap hm)  = "{" <> (hm # toUnfoldable # flatTuples # printListReadably " ") <> "}"
-printStrReadably ex               = printStr ex
+printStrReadably :: MalExpr -> Effect String
+printStrReadably (MalString str) = pure str
+printStrReadably (MalList xs)    = "(" <<> printListReadably " " xs <>> ")"
+printStrReadably (MalVector vs)  = "[" <<> printListReadably " " vs <>> "]"
+printStrReadably (MalHashMap hm) = "{" <<> (hm # toUnfoldable # flatTuples # printListReadably " ") <>> "}"
+printStrReadably ex              = printStr ex
 
 
-printListReadably :: String -> List MalExpr ->  String
-printListReadably _ Nil      = ""
+printListReadably :: String -> List MalExpr ->  Effect String
+printListReadably _ Nil      = pure ""
 printListReadably _ (x:Nil)  = printStrReadably x
-printListReadably sep (x:xs) = printStrReadably x <> sep <> printListReadably sep xs
+printListReadably sep (x:xs) = printStrReadably x <> pure sep <> printListReadably sep xs
 
 
 
@@ -64,3 +67,15 @@ keyValuePairs Nil                      = pure Nil
 keyValuePairs (MalString k : v : kvs)  = (:) (Tuple (StringKey k) v) <$> keyValuePairs kvs
 keyValuePairs (MalKeyword k : v : kvs) = (:) (Tuple (KeywordKey k) v) <$> keyValuePairs kvs
 keyValuePairs _                        = Nothing
+
+
+leftConcat :: forall m s. Bind m => Applicative m => Semigroup s => s -> m s -> m s
+leftConcat op f = (<>) <$> pure op <*> f
+
+infixr 5 leftConcat as <<>
+
+
+rightConcat :: forall m s. Apply m => Semigroup s => Applicative m => m s -> s -> m s
+rightConcat f cl = (<>) <$> f <*> pure cl
+
+infixr 5 rightConcat as <>>

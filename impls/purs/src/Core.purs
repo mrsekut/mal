@@ -13,6 +13,7 @@ import Node.Encoding (Encoding(..))
 import Node.FS.Sync (readTextFile)
 import Printer (printListReadably, printList)
 import Types (MalExpr(..), MalFn, toList)
+import Effect.Ref as Ref
 
 
 
@@ -40,6 +41,12 @@ ns = fromFoldable
   , Tuple "nil?"        $ pred1 nilQ
   , Tuple "empty?"      $ pred1 emptyQ
   , Tuple "count"       count
+
+  , Tuple "atom"       atom
+  , Tuple "atom?"      $ pred1 atomQ
+  , Tuple "deref"      deref
+  , Tuple "reset!"     resetB
+  , Tuple "swap!"      swapB
   ]
 
 
@@ -76,22 +83,24 @@ cmpOp _ _                                  = throwStr "invalid operator"
 -- String functions
 
 prStr :: MalFn
-prStr = pure <<< MalString <<< printList
+prStr a = liftEffect $ MalString <$> printList a
+-- prStr = pure <<< MalString <<< printList
 
 
 str :: MalFn
-str = pure <<< MalString <<< printListReadably ""
+str a = liftEffect $ MalString <$> printListReadably "" a
+-- str = pure <<< MalString <<< printListReadably ""
 
 
 prn :: MalFn
 prn args = liftEffect $ do
-  log $ printList args
+  log =<< printList args
   pure MalNil
 
 
 println :: MalFn
 println args = liftEffect $ do
-  log $ printListReadably " " args
+  log =<< printListReadably " " args
   pure MalNil
 
 
@@ -144,39 +153,38 @@ count _                    = throwStr "non-sequence passed to count"
 
 -- Metadata functions
 
+
+
 -- Atom functions
 
+atom :: MalFn
+atom (v:Nil) = MalAtom <$> liftEffect (Ref.new v)
+atom _       = throwStr "invalid atom call"
 
 
--- atom :: MalFn
--- atom [val] = MalAtom (MetaData Nil) <$> liftIO (newIORef val)
--- atom _ = throwStr "invalid atom call"
+atomQ :: MalExpr -> Boolean
+atomQ (MalAtom _) = true
+atomQ _           = false
 
 
--- atom_Q :: MalVal -> Bool
--- atom_Q (MalAtom _ _) = True
--- atom_Q _             = False
+deref :: MalFn
+deref (MalAtom ref : Nil) = liftEffect $ Ref.read ref
+deref _                   = throwStr "invalid deref call"
 
 
--- deref :: Fn
--- deref [MalAtom _ ref] = liftIO $ readIORef ref
--- deref _ = throwStr "invalid deref call"
+resetB :: MalFn
+resetB (MalAtom ref : val : Nil) = liftEffect $ Ref.write val ref *> pure val
+resetB _                         = throwStr "invalid reset!"
 
 
--- reset_BANG :: Fn
--- reset_BANG [MalAtom _ ref, val] = do
---     liftIO $ writeIORef ref $ val
---     return val
--- reset_BANG _ = throwStr "invalid reset!"
+swapB :: MalFn
+swapB (MalAtom ref : MalFunction {fn:f} : args) = do
+  val <- liftEffect $ Ref.read ref
+  newVal <- f $ val:args
+  liftEffect $ Ref.write newVal ref
+  pure newVal
+swapB _                                         = throwStr "Illegal swap!"
 
-
--- swap_BANG :: Fn
--- swap_BANG (MalAtom _ ref : MalFunction {fn=f} : args) = do
---     val <- liftIO $ readIORef ref
---     new_val <- f (val : args)
---     liftIO $ writeIORef ref new_val
---     return new_val
--- swap_BANG _ = throwStr "Illegal swap!"
 
 
 -- Utils

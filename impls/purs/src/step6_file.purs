@@ -1,4 +1,4 @@
-module Main6 where
+module Main where
 
 import Prelude
 
@@ -107,19 +107,32 @@ evalFnMatch (MalVector params : body : Nil) = evalFn params body
 evalFnMatch _                               = throwStr "invalid fn*"
 
 
--- FIXME: ( ( (fn* (a) (fn* (b) (+ a b))) 5) 7)
 evalFn :: List MalExpr -> MalExpr -> MalEnv MalExpr
 evalFn params body = do
   paramsStr <- traverse unwrapSymbol params
-  pure $ MalFunction { fn : fn paramsStr body, params : paramsStr }
+  f <- fn paramsStr body
+  pure $ MalFunction { fn : f, params : paramsStr }
   where
+  -- FIXME: 実装が歪
+  fn :: List String -> MalExpr -> MalEnv MalFn
+  fn params' body' = do
+    envs1 <- liftEffect =<< Ref.read <$> ask
 
-  fn :: List String -> MalExpr -> MalFn
-  fn params' body' = \args -> Env.local do
-    ok <- Env.sets params' args
-    if ok
-      then evalAst body'
-      else throwStr "actual parameters do not match signature "
+    pure $ \args -> do
+      envs2 <- liftEffect =<< Ref.read <$> ask
+      Env.newEnv
+      ok <- Env.sets params' args
+      r <- if ok
+        then evalAst body'
+        else throwStr "actual parameters do not match signature "
+
+      -- case r of
+      --   MalFunction _ -> pure unit
+      --   _             -> if length envs1 == length envs2
+      --     then pure unit
+      --     else Env.deleteEnv
+      Env.deleteEnv
+      pure r
 
   unwrapSymbol :: MalExpr -> MalEnv String
   unwrapSymbol (MalSymbol s) = pure s
@@ -129,7 +142,7 @@ evalFn params body = do
 
 -- PRINT
 
-print :: MalExpr -> String
+print :: MalExpr -> Effect String
 print = printStr
 
 
@@ -139,7 +152,7 @@ print = printStr
 rep :: String -> MalEnv String
 rep str = case read str of
   Left _    -> throwStr "EOF"
-  Right ast -> print <$> eval ast
+  Right ast -> liftEffect <<< print =<< eval ast
 
 
 loop :: MalEnv Unit

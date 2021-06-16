@@ -15,6 +15,7 @@ import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
+import Effect.Ref (Ref)
 import Effect.Ref as Ref
 
 
@@ -26,6 +27,7 @@ data MalExpr
   | MalString String
   | MalKeyword String
   | MalSymbol String
+  | MalAtom (Ref MalExpr)
   | MalList (List MalExpr)
   | MalVector (List MalExpr)
   | MalHashMap (Map Key MalExpr)
