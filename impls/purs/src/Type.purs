@@ -61,7 +61,7 @@ type MalFn = List MalExpr -> Effect MalExpr
 
 
 type Local = Map String MalExpr
-type RefEnv = Ref.Ref (List Local)
+type RefEnv = List (Ref.Ref Local)
 -- newtype MalEnv a = MalEnv (ReaderT RefEnv Effect a)
 
 -- derive newtype instance Functor MalEnv

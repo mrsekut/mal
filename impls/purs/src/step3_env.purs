@@ -130,6 +130,6 @@ fn op = MalFunction $ { fn : g op, params : Nil }
 
 main :: Effect Unit
 main = do
-  re <- Env.newEnv =<< Env.initEnvRef
+  re <- Env.newEnv Nil
   setArithOp re
   loop re

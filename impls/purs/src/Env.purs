@@ -3,17 +3,18 @@ module Env where
 import Prelude
 
 import Data.List (List(..), (:))
-import Data.Map (fromFoldable, insert, lookup, member)
+import Data.Map (fromFoldable, insert, lookup)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
+import Effect.Console (error)
 import Effect.Ref as Ref
 import Types (Local, MalExpr, RefEnv)
 
 
 
 -- FIXME: いる？
-initEnvRef :: Effect RefEnv
-initEnvRef = Ref.new $ initEnv:Nil
+-- initEnvRef :: Effect RefEnv
+-- initEnvRef = Ref.new $ initEnv:Nil
 
 
 -- runMalEnv :: ∀ m. MalEnv m -> RefEnv -> Effect m
@@ -23,16 +24,15 @@ initEnvRef = Ref.new $ initEnv:Nil
 
 -- Environment
 
--- FIXME: いる？
 initEnv :: Local
 initEnv = fromFoldable Nil
 
 
+-- FIXME: clean
 newEnv :: RefEnv -> Effect RefEnv
 newEnv re = do
-  envs <- Ref.read re
-  Ref.write (initEnv:envs) re
-  pure re
+  a <- Ref.new initEnv
+  pure $ a:re
 
 
 -- deleteEnv :: MalEnv Unit
@@ -56,18 +56,12 @@ newEnv re = do
 -- VARIABLE
 
 get :: RefEnv -> String -> Effect (Maybe MalExpr)
-get re ky = do
-  envs <- Ref.read re
-  case find ky envs of
-    Just ex -> pure $ lookup ky ex
-    Nothing -> pure Nothing
-  where
-
-  find :: String -> List Local -> Maybe Local
-  find _ Nil       = Nothing
-  find ky' (env:outer)
-    | member ky' env = Just env
-    | otherwise      = find ky' outer
+get Nil _ = pure Nothing
+get (ref:outer) ky = do
+  envs <- Ref.read ref
+  case lookup ky envs of
+    Nothing -> get outer ky
+    ex      -> pure ex
 
 
 -- sets :: List String -> List MalExpr -> MalEnv Boolean
@@ -78,11 +72,5 @@ get re ky = do
 
 
 set :: RefEnv -> String -> MalExpr -> Effect Unit
-set re ky ex = do
-  envs <- Ref.read re
-  Ref.write (update ky ex envs) re
-  where
-
-  update :: String -> MalExpr -> List Local -> List Local
-  update _ _ Nil             = Nil
-  update ky' ex' (env:outer) = (insert ky' ex' env):outer
+set (re:_) ky ex = Ref.modify_ (insert ky ex) re
+set Nil _ _      = error "assertion failed in env_set"
