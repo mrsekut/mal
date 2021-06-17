@@ -57,7 +57,7 @@ derive instance Eq Key
 derive instance Ord Key
 
 
-type MalFn = List MalExpr -> MalEnv MalExpr
+type MalFn = List MalExpr -> Effect MalExpr
 
 
 type Env = Map String MalExpr
