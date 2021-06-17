@@ -60,20 +60,20 @@ derive instance Ord Key
 type MalFn = List MalExpr -> Effect MalExpr
 
 
-type Env = Map String MalExpr
-type EnvRef = Ref.Ref (List Env)
-newtype MalEnv a = MalEnv (ReaderT EnvRef Effect a)
+type Local = Map String MalExpr
+type RefEnv = Ref.Ref (List Local)
+-- newtype MalEnv a = MalEnv (ReaderT RefEnv Effect a)
 
-derive newtype instance Functor MalEnv
-derive newtype instance Apply MalEnv
-derive newtype instance Applicative MalEnv
-derive newtype instance Bind MalEnv
-derive newtype instance Monad MalEnv
+-- derive newtype instance Functor MalEnv
+-- derive newtype instance Apply MalEnv
+-- derive newtype instance Applicative MalEnv
+-- derive newtype instance Bind MalEnv
+-- derive newtype instance Monad MalEnv
 
-derive newtype instance MonadAsk EnvRef MalEnv
-derive newtype instance MonadEffect MalEnv
-derive newtype instance MonadThrow Error MalEnv
-derive newtype instance MonadError Error MalEnv
+-- derive newtype instance MonadAsk RefEnv MalEnv
+-- derive newtype instance MonadEffect MalEnv
+-- derive newtype instance MonadThrow Error MalEnv
+-- derive newtype instance MonadError Error MalEnv
 
 
 
