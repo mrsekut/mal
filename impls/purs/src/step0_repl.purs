@@ -1,12 +1,15 @@
-module Main0 where
+module Main where
 
 import Prelude
 import Effect (Effect)
 import Effect.Console (log)
 import Readline (readLine)
 
+
+
 main :: Effect Unit
 main = loop
+
 
 loop :: Effect Unit
 loop = do
@@ -18,14 +21,18 @@ loop = do
       log line
       loop
 
+
 read :: String -> String
 read s = s
+
 
 eval :: String -> String
 eval s = s
 
+
 print :: String -> String
 print s = s
+
 
 rep :: String -> String
 rep = read >>> eval >>> print
