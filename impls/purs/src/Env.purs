@@ -8,17 +8,7 @@ import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Console (error)
 import Effect.Ref as Ref
-import Types (Local, MalExpr, RefEnv)
-
-
-
--- FIXME: いる？
--- initEnvRef :: Effect RefEnv
--- initEnvRef = Ref.new $ initEnv:Nil
-
-
--- runMalEnv :: ∀ m. MalEnv m -> RefEnv -> Effect m
--- runMalEnv (MalEnv m) = runReaderT m
+import Types (Local, MalExpr, RefEnv, toList)
 
 
 
@@ -28,28 +18,8 @@ initEnv :: Local
 initEnv = fromFoldable Nil
 
 
--- FIXME: clean
 newEnv :: RefEnv -> Effect RefEnv
-newEnv re = do
-  a <- Ref.new initEnv
-  pure $ a:re
-
-
--- deleteEnv :: MalEnv Unit
--- deleteEnv = do
---   ref <- ask
---   envs <- liftEffect $ Ref.read ref
---   case tail envs of
---     Just es -> liftEffect $ Ref.write es ref
---     Nothing -> liftEffect $ Ref.write envs ref
-
-
--- local :: ∀ a. MalEnv a -> MalEnv a
--- local cb = do
---   newEnv
---   result <- cb
---   deleteEnv
---   pure result
+newEnv re = flip (:) re <$> Ref.new initEnv
 
 
 
@@ -64,11 +34,11 @@ get (ref:outer) ky = do
     ex      -> pure ex
 
 
--- sets :: List String -> List MalExpr -> MalEnv Boolean
--- sets Nil Nil           = pure true
--- sets ("&":k:Nil) exs   = set k (toList exs) *> pure true
--- sets (ky:kys) (ex:exs) = set ky ex *> sets kys exs
--- sets _ _               = pure false
+sets :: RefEnv -> List String -> List MalExpr -> Effect Boolean
+sets _ Nil Nil             = pure true
+sets env ("&":k:Nil) exs   = set env k (toList exs) *> pure true
+sets env (ky:kys) (ex:exs) = set env ky ex *> sets env kys exs
+sets _ _ _                 = pure false
 
 
 set :: RefEnv -> String -> MalExpr -> Effect Unit
