@@ -13,7 +13,7 @@ import Text.Parsing.Parser (Parser, runParser)
 import Text.Parsing.Parser.Combinators (endBy, skipMany, skipMany1, try)
 import Text.Parsing.Parser.String (char, noneOf, oneOf, string)
 import Text.Parsing.Parser.Token (digit, letter)
-import Types (MalExpr(..), charListToString, listToMap, toList)
+import Types (MalExpr(..), charListToString, listToMap)
 
 
 spaces :: Parser String Unit
@@ -138,7 +138,7 @@ macro tok sym = addPrefix sym <$> (string tok *> readForm)
   where
 
   addPrefix :: String -> MalExpr -> MalExpr
-  addPrefix s x = toList $ MalSymbol s : x : Nil
+  addPrefix s x = MalList $ MalSymbol s : x : Nil
 
 
 readWithMeta :: Parser String MalExpr
@@ -146,7 +146,7 @@ readWithMeta = addPrefix <$> (char '^' *> readForm) <*> readForm
   where
 
   addPrefix :: MalExpr -> MalExpr -> MalExpr
-  addPrefix m x = toList $ MalSymbol "with-meta" : x : m : Nil
+  addPrefix m x = MalList $ MalSymbol "with-meta" : x : m : Nil
 
 
 

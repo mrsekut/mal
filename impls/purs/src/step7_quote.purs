@@ -16,7 +16,7 @@ import Env as Env
 import Mal.Reader (readStr)
 import Printer (printStr)
 import Readline (args, readLine)
-import Types (MalExpr(..), MalFn, RefEnv, toList)
+import Types (MalExpr(..), MalFn, RefEnv, foldrM)
 
 
 
@@ -30,10 +30,10 @@ main = do
     *> rep env "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))"
     *> case as of
       Nil         -> do
-        Env.set env "*ARGV*" $ toList Nil
+        Env.set env "*ARGV*" $ MalList Nil
         loop env
       script:args -> do
-        Env.set env "*ARGV*" $ toList $ MalString <$> args
+        Env.set env "*ARGV*" $ MalList $ MalString <$> args
         rep env $ "(load-file \"" <> script <> "\")"
         *> pure unit
 
@@ -82,12 +82,15 @@ read = readStr
 eval :: RefEnv -> MalExpr -> Effect MalExpr
 eval _ ast@(MalList Nil) = pure ast
 eval env (MalList ast)   = case ast of
-  MalSymbol "def!" : es -> evalDef env es
-  MalSymbol "let*" : es -> evalLet env es
-  MalSymbol "if" : es   -> evalIf env es
-  MalSymbol "do" : es   -> evalDo env es
-  MalSymbol "fn*" : es  -> evalFnMatch env es
-  _                     -> do
+  MalSymbol "def!" : es              -> evalDef env es
+  MalSymbol "let*" : es              -> evalLet env es
+  MalSymbol "if" : es                -> evalIf env es
+  MalSymbol "do" : es                -> evalDo env es
+  MalSymbol "fn*" : es               -> evalFnMatch env es
+  MalSymbol "quote" : es             -> evalQuote env es
+  MalSymbol "quasiquote" : es        -> evalQuasiquote env es
+  MalSymbol "quasiquoteexpand" : es  -> evalQuasiquoteexpand es
+  _                                  -> do
     es <- traverse (evalAst env) ast
     case es of
       (MalFunction {fn:f} : args) -> f args
@@ -178,6 +181,41 @@ evalFn env params body = do
   unwrapSymbol :: MalExpr -> Effect String
   unwrapSymbol (MalSymbol s) = pure s
   unwrapSymbol _             = throw "fn* parameter must be symbols"
+
+
+evalQuote :: RefEnv -> List MalExpr -> Effect MalExpr
+evalQuote _ (e:Nil) = pure e
+evalQuote _ _       = throw "invalid quote"
+
+
+evalQuasiquote :: RefEnv -> List MalExpr -> Effect MalExpr
+evalQuasiquote env (e:Nil) = evalAst env =<< quasiquote e
+evalQuasiquote  _ _        = throw "invalid quasiquote"
+
+
+evalQuasiquoteexpand :: List MalExpr -> Effect MalExpr
+evalQuasiquoteexpand (e:Nil) = quasiquote e
+evalQuasiquoteexpand _       = throw "invalid quasiquote"
+
+
+quasiquote :: MalExpr -> Effect MalExpr
+quasiquote (MalList (MalSymbol "unquote" : x : Nil)) = pure x
+quasiquote (MalList (MalSymbol "unquote" : _))       = throw "invalid unquote"
+quasiquote (MalList xs)                              = foldrM qqIter (MalList Nil) xs
+quasiquote (MalVector xs)                            = do
+  lst <- foldrM qqIter (MalList Nil) xs
+  pure $ MalList $ MalSymbol "vec" : lst : Nil
+quasiquote ast@(MalHashMap _)                        = pure $ MalList $ MalSymbol "quote" : ast : Nil
+quasiquote ast@(MalSymbol _)                         = pure $ MalList $ MalSymbol "quote" : ast : Nil
+quasiquote ast                                       = pure ast
+
+
+qqIter :: MalExpr -> MalExpr -> Effect MalExpr
+qqIter (MalList (MalSymbol "splice-unquote" : x : Nil)) acc = pure $ MalList $ MalSymbol "concat" : x : acc : Nil
+qqIter (MalList (MalSymbol "splice-unquote" : _)) _         = throw "invalid splice-unquote"
+qqIter elt acc                                              = do
+  qqted <- quasiquote elt
+  pure $ MalList $ MalSymbol "cons" : qqted : acc : Nil
 
 
 

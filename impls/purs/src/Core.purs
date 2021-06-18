@@ -3,7 +3,6 @@ module Core (ns) where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Foldable (traverse_)
 import Data.List (List(..), concat, fromFoldable, length, (:))
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
@@ -16,7 +15,7 @@ import Mal.Reader (readStr)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync (readTextFile)
 import Printer (printListReadably, printList)
-import Types (MalExpr(..), MalFn, toList)
+import Types (MalExpr(..), MalFn)
 
 
 
@@ -47,11 +46,13 @@ ns = fromFoldable
   , Tuple "cons"        cons
   , Tuple "concat"      concat'
 
-  , Tuple "atom"       atom
-  , Tuple "atom?"      $ pred1 atomQ
-  , Tuple "deref"      deref
-  , Tuple "reset!"     resetB
-  , Tuple "swap!"      swapB
+  , Tuple "vec"         vec
+
+  , Tuple "atom"        atom
+  , Tuple "atom?"       $ pred1 atomQ
+  , Tuple "deref"       deref
+  , Tuple "reset!"      resetB
+  , Tuple "swap!"       swapB
   ]
 
 
@@ -125,7 +126,7 @@ readString _                   = throw "invalid read-string"
 -- List functions
 
 list :: MalFn
-list = pure <<< toList
+list = pure <<< MalList
 
 
 listQ :: MalExpr -> Boolean
@@ -152,13 +153,14 @@ count _                    = throw "non-sequence passed to count"
 
 
 cons :: MalFn
-cons (x:Nil)                = pure $ toList (x:Nil)
-cons (x : MalList xs : Nil) = pure $ toList (x : xs)
-cons _                      = throw "illegal call to cons"
+cons (x:Nil)                  = pure $ MalList $ x:Nil
+cons (x : MalList xs : Nil)   = pure $ MalList $ x:xs
+cons (x : MalVector xs : Nil) = pure $ MalList $ x:xs
+cons _                        = throw "illegal call to cons"
 
 
 concat' :: MalFn
-concat' args = toList <<< concat <$> traverse unwrapSeq args
+concat' args = MalList <<< concat <$> traverse unwrapSeq args
   where
 
   unwrapSeq :: MalExpr -> Effect (List MalExpr)
@@ -169,6 +171,14 @@ concat' args = toList <<< concat <$> traverse unwrapSeq args
 
 
 -- Vector functions
+
+vec :: MalFn
+vec (MalList xs : Nil)   = pure $ MalVector xs
+vec (MalVector xs : Nil) = pure $ MalVector xs
+vec Nil                  = throw "vec: arg type"
+vec _                    = throw "vec: arg type"
+
+
 
 -- Hash Map functions
 

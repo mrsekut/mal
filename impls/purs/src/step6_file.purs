@@ -16,7 +16,7 @@ import Env as Env
 import Mal.Reader (readStr)
 import Printer (printStr)
 import Readline (args, readLine)
-import Types (MalExpr(..), MalFn, RefEnv, toList)
+import Types (MalExpr(..), MalFn, RefEnv)
 
 
 
@@ -30,10 +30,10 @@ main = do
     *> rep env "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))"
     *> case as of
       Nil         -> do
-        Env.set env "*ARGV*" $ toList Nil
+        Env.set env "*ARGV*" $ MalList Nil
         loop env
       script:args -> do
-        Env.set env "*ARGV*" $ toList $ MalString <$> args
+        Env.set env "*ARGV*" $ MalList $ MalString <$> args
         rep env $ "(load-file \"" <> script <> "\")"
         *> pure unit
 

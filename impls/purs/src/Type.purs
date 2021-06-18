@@ -3,11 +3,13 @@ module Types where
 import Prelude
 
 import Data.Array as Array
+import Data.Foldable (class Foldable)
 import Data.List (List(..), foldr, (:))
 import Data.List as List
 import Data.Map (Map)
 import Data.Map.Internal as Map
 import Data.String.CodeUnits (fromCharArray, toCharArray)
+import Data.Traversable (foldl)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Ref (Ref)
@@ -62,10 +64,6 @@ type RefEnv = List (Ref.Ref Local)
 
 -- Utils
 
-toList :: List MalExpr -> MalExpr
-toList = MalList
-
-
 listToMap :: List (Tuple Key MalExpr) -> Map Key MalExpr
 listToMap = Map.fromFoldable
 
@@ -86,3 +84,8 @@ flatTuples :: List (Tuple Key MalExpr) -> List MalExpr
 flatTuples ((Tuple (StringKey a) b) : xs)  = MalString a : b : flatTuples xs
 flatTuples ((Tuple (KeywordKey a) b) : xs) = MalKeyword a : b : flatTuples xs
 flatTuples _                               = Nil
+
+
+foldrM :: forall a m b f. Foldable f => Monad m => (a -> b -> m b) -> b -> f a -> m b
+foldrM f z0 xs = foldl c pure xs z0
+  where c k x z = f x z >>= k
