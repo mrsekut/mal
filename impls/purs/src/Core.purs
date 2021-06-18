@@ -3,8 +3,11 @@ module Core (ns) where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.List (List(..), fromFoldable, (:), length)
+import Data.Foldable (traverse_)
+import Data.List (List(..), concat, fromFoldable, length, (:))
+import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
+import Effect (Effect)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (throw)
@@ -41,6 +44,8 @@ ns = fromFoldable
   , Tuple "nil?"        $ pred1 nilQ
   , Tuple "empty?"      $ pred1 emptyQ
   , Tuple "count"       count
+  , Tuple "cons"        cons
+  , Tuple "concat"      concat'
 
   , Tuple "atom"       atom
   , Tuple "atom?"      $ pred1 atomQ
@@ -144,6 +149,22 @@ count (MalNil:Nil)         = pure $ MalInt 0
 count (MalList ex : Nil)   = pure $ MalInt $ length ex
 count (MalVector ex : Nil) = pure $ MalInt $ length ex
 count _                    = throw "non-sequence passed to count"
+
+
+cons :: MalFn
+cons (x:Nil)                = pure $ toList (x:Nil)
+cons (x : MalList xs : Nil) = pure $ toList (x : xs)
+cons _                      = throw "illegal call to cons"
+
+
+concat' :: MalFn
+concat' args = toList <<< concat <$> traverse unwrapSeq args
+  where
+
+  unwrapSeq :: MalExpr -> Effect (List MalExpr)
+  unwrapSeq (MalList xs)   = pure xs
+  unwrapSeq (MalVector xs) = pure xs
+  unwrapSeq _              = throw "invalid concat"
 
 
 
