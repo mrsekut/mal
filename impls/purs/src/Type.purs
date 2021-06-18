@@ -2,9 +2,6 @@ module Types where
 
 import Prelude
 
-import Control.Monad.Error.Class (class MonadError, class MonadThrow)
-import Control.Monad.Reader.Class (class MonadAsk)
-import Control.Monad.Reader.Trans (ReaderT)
 import Data.Array as Array
 import Data.List (List(..), foldr, (:))
 import Data.List as List
@@ -13,8 +10,6 @@ import Data.Map.Internal as Map
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
-import Effect.Class (class MonadEffect)
-import Effect.Exception (Error)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 
@@ -62,18 +57,6 @@ type MalFn = List MalExpr -> Effect MalExpr
 
 type Local = Map String MalExpr
 type RefEnv = List (Ref.Ref Local)
--- newtype MalEnv a = MalEnv (ReaderT RefEnv Effect a)
-
--- derive newtype instance Functor MalEnv
--- derive newtype instance Apply MalEnv
--- derive newtype instance Applicative MalEnv
--- derive newtype instance Bind MalEnv
--- derive newtype instance Monad MalEnv
-
--- derive newtype instance MonadAsk RefEnv MalEnv
--- derive newtype instance MonadEffect MalEnv
--- derive newtype instance MonadThrow Error MalEnv
--- derive newtype instance MonadError Error MalEnv
 
 
 

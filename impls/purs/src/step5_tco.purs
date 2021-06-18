@@ -3,23 +3,20 @@ module Main5 where
 -- import Prelude
 
 -- import Control.Monad.Error.Class (try)
--- import Control.Monad.Reader.Class (ask)
 -- import Core as Core
 -- import Data.Either (Either(..))
--- import Data.List (List(..), foldM, length, (:))
+-- import Data.List (List(..), foldM, (:))
 -- import Data.Maybe (Maybe(..))
 -- import Data.Traversable (traverse)
 -- import Data.Tuple (Tuple(..))
 -- import Effect (Effect)
--- import Effect.Class (liftEffect)
 -- import Effect.Console (error, log)
--- import Effect.Ref as Ref
--- import Env (throwStr)
+-- import Effect.Exception (throw)
 -- import Env as Env
 -- import Mal.Reader (readStr)
 -- import Printer (printStr)
 -- import Readline (readLine)
--- import Types (MalEnv, MalExpr(..), MalFn)
+-- import Types (MalExpr(..), MalFn, RefEnv)
 
 
 
@@ -32,145 +29,138 @@ module Main5 where
 
 -- -- EVAL
 
--- eval :: MalExpr -> MalEnv MalExpr
--- eval ast@(MalList Nil) = pure ast
--- eval (MalList ast)     = case ast of
---   MalSymbol "def!" : es -> evalDef es
---   MalSymbol "let*" : es -> evalLet es
---   MalSymbol "do" : es   -> evalDo es
---   MalSymbol "if" : es   -> evalIf es
---   MalSymbol "fn*" : es  -> evalFnMatch es
+-- eval :: RefEnv -> MalExpr -> Effect MalExpr
+-- eval _ ast@(MalList Nil) = pure ast
+-- eval env (MalList ast)   = case ast of
+--   MalSymbol "def!" : es -> evalDef env es
+--   MalSymbol "let*" : es -> evalLet env es
+--   MalSymbol "if" : es   -> evalIf env es
+--   MalSymbol "do" : es   -> evalDo env es
+--   MalSymbol "fn*" : es  -> evalFnMatch env es
 --   _                     -> do
---     es <- traverse evalAst ast
+--     es <- traverse (evalAst env) ast
 --     case es of
---       MalFunction {fn:f} : args -> f args
---       _                         -> throwStr "invalid function"
--- eval ast               = evalAst ast
+--       (MalFunction {fn:f} : args) -> f args
+--       _                           -> throw "invalid function"
+-- eval env            ast = evalAst env ast
 
 
--- evalAst :: MalExpr -> MalEnv MalExpr
--- evalAst (MalSymbol s)   = do
---   ref <- ask
---   envs <- liftEffect $ Ref.read ref
---   case Env.get s envs of
+-- evalAst :: RefEnv -> MalExpr -> Effect MalExpr
+-- evalAst env (MalSymbol s)     = do
+--   result <- Env.get env s
+--   case result of
 --     Just k  -> pure k
---     Nothing -> throwStr $ "'" <> s <> "'" <> " not found"
--- evalAst ast@(MalList _) = eval ast
--- evalAst (MalVector es)  = MalVector <$> traverse eval es
--- evalAst (MalHashMap es) = MalHashMap <$> traverse eval es
--- evalAst ast             = pure ast
+--     Nothing -> throw $ "'" <> s <> "'" <> " not found"
+-- evalAst env ast@(MalList _)   = eval env ast
+-- evalAst env (MalVector envs)  = MalVector <$> traverse (eval env) envs
+-- evalAst env (MalHashMap envs) = MalHashMap <$> traverse (eval env) envs
+-- evalAst _ ast                 = pure ast
 
 
--- evalDef :: List MalExpr -> MalEnv MalExpr
--- evalDef (MalSymbol v : e : Nil) = do
---   evd <- evalAst e
---   Env.set v evd
+-- evalDef :: RefEnv -> List MalExpr -> Effect MalExpr
+-- evalDef env (MalSymbol v : e : Nil) = do
+--   evd <- evalAst env e
+--   Env.set env v evd
 --   pure evd
--- evalDef _                       = throwStr "invalid def!"
+-- evalDef _ _                         = throw "invalid def!"
 
 
--- evalLet :: List MalExpr -> MalEnv MalExpr
--- evalLet (MalList ps : e : Nil)   = Env.local $ letBind ps *> eval e
--- evalLet (MalVector ps : e : Nil) = Env.local $ letBind ps *> eval e
--- evalLet _                        = throwStr "invalid let*"
+-- evalLet :: RefEnv -> List MalExpr -> Effect MalExpr
+-- evalLet env (MalList ps : e : Nil)   = do
+--   letEnv <- Env.newEnv env
+--   letBind letEnv ps
+--   evalAst letEnv e
+-- evalLet env (MalVector ps : e : Nil) = do
+--   letEnv <- Env.newEnv env
+--   letBind letEnv ps
+--   evalAst letEnv e
+-- evalLet _ _                          = throw "invalid let*"
 
 
--- letBind :: List MalExpr -> MalEnv Unit
--- letBind Nil                     = pure unit
--- letBind (MalSymbol ky : e : es) = (Env.set ky =<< eval e) *> letBind es
--- letBind _                       = throwStr "invalid let*"
+-- letBind :: RefEnv -> List MalExpr -> Effect Unit
+-- letBind _ Nil                       = pure unit
+-- letBind env (MalSymbol ky : e : es) = do
+--   Env.set env ky =<< evalAst env e
+--   letBind env es
+-- letBind _ _                         = throw "invalid let*"
 
 
--- evalIf :: List MalExpr -> MalEnv MalExpr
--- evalIf (b:t:e:Nil) = do
---   cond <- evalAst b
---   evalAst case cond of
+-- evalIf :: RefEnv -> List MalExpr -> Effect MalExpr
+-- evalIf env (b:t:e:Nil) = do
+--   cond <- evalAst env b
+--   evalAst env case cond of
 --     MalNil           -> e
 --     MalBoolean false -> e
 --     _                -> t
--- evalIf (b:t:Nil)   = do
---   cond <- evalAst b
---   evalAst case cond of
+-- evalIf env (b:t:Nil)   = do
+--   cond <- evalAst env b
+--   evalAst env case cond of
 --     MalNil           -> MalNil
 --     MalBoolean false -> MalNil
 --     _                -> t
--- evalIf _           = throwStr "invalid if"
+-- evalIf _ _             = throw "invalid if"
 
 
--- evalDo :: List MalExpr -> MalEnv MalExpr
--- evalDo es = foldM (const evalAst) MalNil es
+-- evalDo :: RefEnv -> List MalExpr -> Effect MalExpr
+-- evalDo env es = foldM (const $ evalAst env) MalNil es
 
 
--- evalFnMatch :: List MalExpr -> MalEnv MalExpr
--- evalFnMatch (MalList params : body : Nil)   = evalFn params body
--- evalFnMatch (MalVector params : body : Nil) = evalFn params body
--- evalFnMatch _                               = throwStr "invalid fn*"
+-- evalFnMatch :: RefEnv -> List MalExpr -> Effect MalExpr
+-- evalFnMatch env (MalList params : body : Nil)   = evalFn env params body
+-- evalFnMatch env (MalVector params : body : Nil) = evalFn env params body
+-- evalFnMatch _ _                                 = throw "invalid fn*"
 
 
--- evalFn :: List MalExpr -> MalExpr -> MalEnv MalExpr
--- evalFn params body = do
+-- evalFn :: RefEnv -> List MalExpr -> MalExpr -> Effect MalExpr
+-- evalFn env params body = do
 --   paramsStr <- traverse unwrapSymbol params
---   f <- fn paramsStr body
---   pure $ MalFunction { fn : f, params : paramsStr }
+--   pure $ MalFunction { fn : fn paramsStr body, params : paramsStr }
 --   where
 
+--   fn :: List String -> MalExpr -> MalFn
+--   fn params' body' = \args -> do
+--     fnEnv <- Env.newEnv env
+--     ok <- Env.sets fnEnv params' args
+--     if ok
+--       then evalAst fnEnv body'
+--       else throw "actual parameters do not match signature "
 
---   -- FIXME: 実装が歪
---   fn :: List String -> MalExpr -> MalEnv MalFn
---   fn params' body' = do
---     envs1 <- liftEffect =<< Ref.read <$> ask
-
---     pure $ \args -> do
---       envs2 <- liftEffect =<< Ref.read <$> ask
---       Env.newEnv
---       ok <- Env.sets params' args
---       r <- if ok
---         then evalAst body'
---         else throwStr "actual parameters do not match signature "
-
---       case r of
---         MalFunction _ -> pure unit
---         _             -> if length envs1 == length envs2
---           then pure unit
---           else Env.deleteEnv
---       pure r
-
---   unwrapSymbol :: MalExpr -> MalEnv String
+--   unwrapSymbol :: MalExpr -> Effect String
 --   unwrapSymbol (MalSymbol s) = pure s
---   unwrapSymbol _             = throwStr "fn* parameter must be symbols"
+--   unwrapSymbol _             = throw "fn* parameter must be symbols"
 
 
 
 -- -- PRINT
 
--- print :: MalExpr -> String
+-- print :: MalExpr -> Effect String
 -- print = printStr
 
 
 
 -- -- REPL
 
--- rep :: String -> MalEnv String
--- rep str = case read str of
---   Left _    -> throwStr "EOF"
---   Right ast -> print <$> eval ast
+-- rep :: RefEnv -> String -> Effect String
+-- rep env str = case read str of
+--   Left _    -> throw "EOF"
+--   Right ast -> print =<< eval env ast
 
 
--- loop :: MalEnv Unit
--- loop = do
---   line <- liftEffect readLine
+-- loop :: RefEnv -> Effect Unit
+-- loop env = do
+--   line <- readLine
 --   case line of
 --     ":q" -> pure unit
 --     _    -> do
---       result <- try $ rep line
+--       result <- try $ rep env line
 --       case result of
---         Right exp -> liftEffect $ log exp
---         Left err  -> liftEffect $ error $ show err
---       loop
+--         Right exp -> log exp
+--         Left err  -> error $ show err
+--       loop env
 
 
--- setFn :: Tuple String MalFn -> MalEnv Unit
--- setFn (Tuple sym f) = Env.set sym $ MalFunction { fn : f, params : Nil }
+-- setFn :: RefEnv -> Tuple String MalFn -> Effect Unit
+-- setFn env (Tuple sym f) = Env.set env sym $ MalFunction { fn : f, params : Nil }
 
 
 
@@ -178,8 +168,7 @@ module Main5 where
 
 -- main :: Effect Unit
 -- main = do
---   ref <- liftEffect Env.initEnvRef
---   flip Env.runMalEnv ref $
---        traverse setFn Core.ns
---     *> rep "(def! not (fn* (a) (if a false true)))"
---     *> loop
+--   re <- Env.newEnv Nil
+--   _ <- traverse (setFn re) Core.ns
+--   _ <- rep re "(def! not (fn* (a) (if a false true)))"
+--   loop re
