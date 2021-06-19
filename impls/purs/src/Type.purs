@@ -28,7 +28,10 @@ data MalExpr
   | MalList (List MalExpr)
   | MalVector (List MalExpr)
   | MalHashMap (Map Key MalExpr)
-  | MalFunction { fn :: MalFn , params :: List String }
+  | MalFunction { fn :: MalFn
+                , params :: List String
+                , macro :: Boolean
+                }
 
 instance Eq MalExpr where
   eq MalNil MalNil                 = true

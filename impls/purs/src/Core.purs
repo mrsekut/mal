@@ -3,7 +3,7 @@ module Core (ns) where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.List (List(..), concat, fromFoldable, length, (:))
+import Data.List (List(..), concat, drop, fromFoldable, length, (:))
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
@@ -45,6 +45,9 @@ ns = fromFoldable
   , Tuple "count"       count
   , Tuple "cons"        cons
   , Tuple "concat"      concat'
+  , Tuple "nth"         nth
+  , Tuple "first"       first
+  , Tuple "rest"        rest
 
   , Tuple "vec"         vec
 
@@ -167,6 +170,36 @@ concat' args = MalList <<< concat <$> traverse unwrapSeq args
   unwrapSeq (MalList xs)   = pure xs
   unwrapSeq (MalVector xs) = pure xs
   unwrapSeq _              = throw "invalid concat"
+
+
+nth :: MalFn
+nth (MalList xs : MalInt n : Nil)  =
+  case drop n xs of
+    x:_ -> pure x
+    Nil -> throw "nth: index out of range"
+nth (MalVector xs : MalInt n : Nil) =
+  case drop n xs of
+    x:_ -> pure x
+    Nil -> throw "nth: index out of range"
+nth _                              = throw "invalid call to nth"
+
+
+first :: MalFn
+first (MalNil:Nil)            = pure MalNil
+first (MalList Nil : Nil)     = pure MalNil
+first (MalList (x:_) : Nil)   = pure x
+first (MalVector Nil : Nil)   = pure MalNil
+first (MalVector (x:_) : Nil) = pure x
+first _                       = throw "illegal call to first"
+
+
+rest :: MalFn
+rest (MalNil:Nil)             = pure $ MalList Nil
+rest (MalList Nil : Nil)      = pure $ MalList Nil
+rest (MalList (_:xs) : Nil)   = pure $ MalList xs
+rest (MalVector Nil : Nil)    = pure $ MalList Nil
+rest (MalVector (_:xs) : Nil) = pure $ MalList xs
+rest _                        = throw "illegal call to rest"
 
 
 
