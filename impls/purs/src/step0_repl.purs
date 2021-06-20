@@ -1,38 +1,38 @@
-module Main0 where
+module Mal.Step0 where
 
--- import Prelude
--- import Effect (Effect)
--- import Effect.Console (log)
--- import Readline (readLine)
-
-
-
--- main :: Effect Unit
--- main = loop
+import Prelude
+import Effect (Effect)
+import Effect.Console (log)
+import Readline (readLine)
 
 
--- loop :: Effect Unit
--- loop = do
---   line <- readLine
---   case line of
---     ":q" -> pure unit
---     ":Q" -> pure unit
---     _ -> do
---       log line
---       loop
+
+main :: Effect Unit
+main = loop
 
 
--- read :: String -> String
--- read s = s
+loop :: Effect Unit
+loop = do
+  line <- readLine "user> "
+  case line of
+    ":q" -> pure unit
+    ":Q" -> pure unit
+    _ -> do
+      log line
+      loop
 
 
--- eval :: String -> String
--- eval s = s
+read :: String -> String
+read s = s
 
 
--- print :: String -> String
--- print s = s
+eval :: String -> String
+eval s = s
 
 
--- rep :: String -> String
--- rep = read >>> eval >>> print
+print :: String -> String
+print s = s
+
+
+rep :: String -> String
+rep = read >>> eval >>> print
