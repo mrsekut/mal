@@ -8,7 +8,7 @@ import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Console (error)
 import Effect.Ref as Ref
-import Types (Local, MalExpr(..), RefEnv)
+import Types (Local, MalExpr, RefEnv, toList)
 
 
 
@@ -36,7 +36,7 @@ get (ref:outer) ky = do
 
 sets :: RefEnv -> List String -> List MalExpr -> Effect Boolean
 sets _ Nil Nil             = pure true
-sets env ("&":k:Nil) exs   = set env k (MalList exs) *> pure true
+sets env ("&":k:Nil) exs   = set env k (toList exs) *> pure true
 sets env (ky:kys) (ex:exs) = set env ky ex *> sets env kys exs
 sets _ _ _                 = pure false
 

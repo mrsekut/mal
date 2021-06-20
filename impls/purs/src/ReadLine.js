@@ -2,8 +2,11 @@
 
 var readlineSync = require('readline-sync')
 
-exports.readLine = function () {
-  return readlineSync.question('user> ')
+exports.readLine = function (x) {
+  return function () {
+    return readlineSync.question(x)
+  }
 }
+
 
 exports.argv = process.argv;

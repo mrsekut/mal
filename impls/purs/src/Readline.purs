@@ -7,7 +7,7 @@ import Effect (Effect)
 
 
 
-foreign import readLine :: Effect String
+foreign import readLine :: String -> Effect String
 
 
 foreign import argv :: Array String

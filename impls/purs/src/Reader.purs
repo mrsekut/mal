@@ -13,7 +13,7 @@ import Text.Parsing.Parser (Parser, runParser)
 import Text.Parsing.Parser.Combinators (endBy, skipMany, skipMany1, try)
 import Text.Parsing.Parser.String (char, noneOf, oneOf, string)
 import Text.Parsing.Parser.Token (digit, letter)
-import Types (MalExpr(..), charListToString, listToMap)
+import Types (MalExpr(..), charListToString, listToMap, toHashMap, toList, toVector)
 
 
 spaces :: Parser String Unit
@@ -98,7 +98,7 @@ readSymbol = f <$> (letter <|> symbol) <*> many (letter <|> digit <|> symbol)
 
 readList :: Parser String MalExpr
 readList = fix $ \_ ->
-  MalList <$> (char '(' *> ignored *> endBy readForm ignored <* char ')')
+  toList <$> (char '(' *> ignored *> endBy readForm ignored <* char ')')
 
 
 
@@ -106,7 +106,7 @@ readList = fix $ \_ ->
 
 readVector :: Parser String MalExpr
 readVector = fix $ \_ ->
-  MalVector <$> (char '[' *> ignored *> endBy readForm ignored <* char ']')
+  toVector <$> (char '[' *> ignored *> endBy readForm ignored <* char ']')
 
 
 
@@ -117,7 +117,7 @@ readHashMap = fix $ \_
   -> char '{' *> ignored *> endBy readForm ignored <* char '}'
   <#> keyValuePairs
   <#> case _ of
-    Just ts -> MalHashMap $ listToMap ts
+    Just ts -> toHashMap $ listToMap ts
     Nothing -> MalString "hash map error" -- FIXME: error
 
 
@@ -139,7 +139,7 @@ macro tok sym = addPrefix sym <$> (string tok *> readForm)
   where
 
   addPrefix :: String -> MalExpr -> MalExpr
-  addPrefix s x = MalList $ MalSymbol s : x : Nil
+  addPrefix s x = toList $ MalSymbol s : x : Nil
 
 
 readWithMeta :: Parser String MalExpr
@@ -147,7 +147,7 @@ readWithMeta = addPrefix <$> (char '^' *> readForm) <*> readForm
   where
 
   addPrefix :: MalExpr -> MalExpr -> MalExpr
-  addPrefix m x = MalList $ MalSymbol "with-meta" : x : m : Nil
+  addPrefix m x = toList $ MalSymbol "with-meta" : x : m : Nil
 
 
 

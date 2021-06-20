@@ -24,31 +24,31 @@ data MalExpr
   | MalString String
   | MalKeyword String
   | MalSymbol String
-  | MalAtom (Ref MalExpr)
-  | MalList (List MalExpr)
-  | MalVector (List MalExpr)
-  | MalHashMap (Map Key MalExpr)
+  | MalAtom Meta (Ref MalExpr)
+  | MalList Meta (List MalExpr)
+  | MalVector Meta (List MalExpr)
+  | MalHashMap Meta (Map Key MalExpr)
   | MalFunction { fn :: MalFn
                 , params :: List String
                 , macro :: Boolean
+                , meta :: MalExpr
                 }
 
 instance Eq MalExpr where
-  eq MalNil MalNil                 = true
-  eq (MalBoolean a) (MalBoolean b) = a == b
-  eq (MalInt a) (MalInt b)         = a == b
-  eq (MalString a) (MalString b)   = a == b
-  eq (MalKeyword a) (MalKeyword b) = a == b
-  eq (MalSymbol a) (MalSymbol b)   = a == b
+  eq MalNil MalNil                     = true
+  eq (MalBoolean a) (MalBoolean b)     = a == b
+  eq (MalInt a) (MalInt b)             = a == b
+  eq (MalString a) (MalString b)       = a == b
+  eq (MalKeyword a) (MalKeyword b)     = a == b
+  eq (MalSymbol a) (MalSymbol b)       = a == b
 
-  eq (MalList a) (MalList b)       = a == b
-  eq (MalVector a) (MalList b)     = a == b
-  eq (MalList a) (MalVector b)     = a == b
+  eq (MalList _ a) (MalList _ b)       = a == b
+  eq (MalVector _ a) (MalList _ b)     = a == b
+  eq (MalList _ a) (MalVector _ b)     = a == b
 
-  eq (MalVector a) (MalVector b)   = a == b
-  eq (MalHashMap a) (MalHashMap b) = a == b
-  eq _ _                           = false
-
+  eq (MalVector _ a) (MalVector _ b)   = a == b
+  eq (MalHashMap _ a) (MalHashMap _ b) = a == b
+  eq _ _                               = false
 
 
 data Key = StringKey String
@@ -63,6 +63,28 @@ type MalFn = List MalExpr -> Effect MalExpr
 
 type Local = Map String MalExpr
 type RefEnv = List (Ref.Ref Local)
+
+
+
+-- Metas
+
+newtype Meta = Meta MalExpr
+
+
+toList :: List MalExpr -> MalExpr
+toList = MalList (Meta MalNil)
+
+
+toVector :: List MalExpr -> MalExpr
+toVector = MalVector (Meta MalNil)
+
+
+toAtom :: Ref MalExpr -> MalExpr
+toAtom = MalAtom (Meta MalNil)
+
+
+toHashMap :: Map Key MalExpr -> MalExpr
+toHashMap = MalHashMap (Meta MalNil)
 
 
 

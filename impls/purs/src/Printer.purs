@@ -16,17 +16,17 @@ import Types (Key(..), MalExpr(..), flatTuples, flatStrings, stringToCharList)
 -- PRINT STRING
 
 printStr :: MalExpr -> Effect String
-printStr MalNil           = pure "nil"
-printStr (MalBoolean b)   = pure $ show b
-printStr (MalInt n)       = pure $ show n
-printStr (MalString str)  = pure $ "\"" <> (str # stringToCharList # map unescape # flatStrings) <> "\""
-printStr (MalKeyword key) = pure key
-printStr (MalAtom r)      = "(atom " <<> (Ref.read r >>= printStr) <>> ")"
-printStr (MalSymbol name) = pure name
-printStr (MalList xs)     = "(" <<> printList xs <>> ")"
-printStr (MalVector vs)   = "[" <<> printList vs <>> "]"
-printStr (MalHashMap hm)  = "{" <<> (hm # toUnfoldable # flatTuples # printList) <>> "}"
-printStr (MalFunction _)  = pure "#<function>"
+printStr MalNil             = pure "nil"
+printStr (MalBoolean b)     = pure $ show b
+printStr (MalInt n)         = pure $ show n
+printStr (MalString str)    = pure $ "\"" <> (str # stringToCharList # map unescape # flatStrings) <> "\""
+printStr (MalKeyword key)   = pure key
+printStr (MalAtom _ r)      = "(atom " <<> (Ref.read r >>= printStr) <>> ")"
+printStr (MalSymbol name)   = pure name
+printStr (MalList _ xs)     = "(" <<> printList xs <>> ")"
+printStr (MalVector _ vs)   = "[" <<> printList vs <>> "]"
+printStr (MalHashMap _ hm)  = "{" <<> (hm # toUnfoldable # flatTuples # printList) <>> "}"
+printStr (MalFunction _)    = pure "#<function>"
 
 
 printList :: List MalExpr -> Effect String
@@ -39,11 +39,11 @@ printList (x:xs)  = printStr x <> pure " " <> printList xs
 -- PRINT STRING READABLY
 
 printStrReadably :: MalExpr -> Effect String
-printStrReadably (MalString str) = pure str
-printStrReadably (MalList xs)    = "(" <<> printListReadably " " xs <>> ")"
-printStrReadably (MalVector vs)  = "[" <<> printListReadably " " vs <>> "]"
-printStrReadably (MalHashMap hm) = "{" <<> (hm # toUnfoldable # flatTuples # printListReadably " ") <>> "}"
-printStrReadably ex              = printStr ex
+printStrReadably (MalString str)   = pure str
+printStrReadably (MalList _ xs)    = "(" <<> printListReadably " " xs <>> ")"
+printStrReadably (MalVector _ vs)  = "[" <<> printListReadably " " vs <>> "]"
+printStrReadably (MalHashMap _ hm) = "{" <<> (hm # toUnfoldable # flatTuples # printListReadably " ") <>> "}"
+printStrReadably ex                = printStr ex
 
 
 printListReadably :: String -> List MalExpr ->  Effect String
