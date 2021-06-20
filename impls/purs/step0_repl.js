@@ -49,8 +49,8 @@ var PS = {};
 })(PS);
 (function($PS) {
   "use strict";
-  $PS["Main"] = $PS["Main"] || {};
-  var exports = $PS["Main"];
+  $PS["Mal.Step0"] = $PS["Mal.Step0"] || {};
+  var exports = $PS["Mal.Step0"];
   var Data_Unit = $PS["Data.Unit"];
   var Effect_Console = $PS["Effect.Console"];
   var Readline = $PS["Readline"];                
@@ -85,4 +85,4 @@ var PS = {};
   exports["print"] = print;
   exports["rep"] = rep;
 })(PS);
-PS["Main"].main();
+PS["Mal.Step0"].main();

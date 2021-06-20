@@ -21363,8 +21363,8 @@ var PS = {};
 })(PS);
 (function($PS) {
   "use strict";
-  $PS["Main"] = $PS["Main"] || {};
-  var exports = $PS["Main"];
+  $PS["Mal.Step5"] = $PS["Mal.Step5"] || {};
+  var exports = $PS["Mal.Step5"];
   var Control_Applicative = $PS["Control.Applicative"];
   var Control_Bind = $PS["Control.Bind"];
   var Control_Monad_Error_Class = $PS["Control.Monad.Error.Class"];
@@ -21378,7 +21378,6 @@ var PS = {};
   var Data_Maybe = $PS["Data.Maybe"];
   var Data_Show = $PS["Data.Show"];
   var Data_Traversable = $PS["Data.Traversable"];
-  var Data_Tuple = $PS["Data.Tuple"];
   var Data_Unit = $PS["Data.Unit"];
   var Effect = $PS["Effect"];
   var Effect_Console = $PS["Effect.Console"];
@@ -21418,22 +21417,20 @@ var PS = {};
           return Effect_Exception["throw"]("invalid let*");
       };
   };
-
-  // FIXME: 多分変わらんからもとに戻すか
   var evalLet = function (v) {
       return function (v1) {
           if (v1 instanceof Data_List_Types.Cons && (v1.value0 instanceof Types.MalList && (v1.value1 instanceof Data_List_Types.Cons && v1.value1.value1 instanceof Data_List_Types.Nil))) {
               return function __do() {
-                  var inner = Env.newEnv(v)();
-                  letBind(inner)(v1.value0.value1)();
-                  return new Data_Tuple.Tuple(inner, v1.value1.value0);
+                  var letEnv = Env.newEnv(v)();
+                  letBind(letEnv)(v1.value0.value1)();
+                  return evalAst(letEnv)(v1.value1.value0)();
               };
           };
           if (v1 instanceof Data_List_Types.Cons && (v1.value0 instanceof Types.MalVector && (v1.value1 instanceof Data_List_Types.Cons && v1.value1.value1 instanceof Data_List_Types.Nil))) {
               return function __do() {
-                  var inner = Env.newEnv(v)();
-                  letBind(inner)(v1.value0.value1)();
-                  return new Data_Tuple.Tuple(inner, v1.value1.value0);
+                  var letEnv = Env.newEnv(v)();
+                  letBind(letEnv)(v1.value0.value1)();
+                  return evalAst(letEnv)(v1.value1.value0)();
               };
           };
           return Effect_Exception["throw"]("invalid let*");
@@ -21514,12 +21511,9 @@ var PS = {};
           };
       };
   };
-  var evalDo = function (v) {
-      return function (v1) {
-          if (v1 instanceof Data_List_Types.Cons && v1.value1 instanceof Data_List_Types.Nil) {
-              return Control_Applicative.pure(Effect.applicativeEffect)(v1.value0);
-          };
-          return Data_List.foldM(Effect.monadEffect)(Data_Function["const"](evalAst(v)))(Types.MalNil.value)(v1);
+  var evalDo = function (env) {
+      return function (es) {
+          return Data_List.foldM(Effect.monadEffect)(Data_Function["const"](evalAst(env)))(Types.MalNil.value)(es);
       };
   };
   var evalDef = function (v) {
@@ -21545,7 +21539,7 @@ var PS = {};
                   if (result instanceof Data_Maybe.Nothing) {
                       return Effect_Exception["throw"]("'" + (v1.value0 + ("'" + " not found")))();
                   };
-                  throw new Error("Failed pattern match at Main (line 53, column 3 - line 55, column 55): " + [ result.constructor.name ]);
+                  throw new Error("Failed pattern match at Mal.Step5 (line 51, column 3 - line 53, column 55): " + [ result.constructor.name ]);
               };
           };
           if (v1 instanceof Types.MalList) {
@@ -21572,16 +21566,13 @@ var PS = {};
                   return evalDef(v)(v1.value1.value1);
               };
               if (v1.value1 instanceof Data_List_Types.Cons && (v1.value1.value0 instanceof Types.MalSymbol && v1.value1.value0.value0 === "let*")) {
-                  return function __do() {
-                      var v2 = evalLet(v)(v1.value1.value1)();
-                      return evalAst(v2.value0)(v2.value1)();
-                  };
+                  return evalLet(v)(v1.value1.value1);
               };
               if (v1.value1 instanceof Data_List_Types.Cons && (v1.value1.value0 instanceof Types.MalSymbol && v1.value1.value0.value0 === "if")) {
-                  return Control_Bind.bind(Effect.bindEffect)(evalIf(v)(v1.value1.value1))(evalAst(v));
+                  return Control_Bind.bind(Effect.bindEffect)(evalIf(v)(v1.value1.value1))($$eval(v));
               };
               if (v1.value1 instanceof Data_List_Types.Cons && (v1.value1.value0 instanceof Types.MalSymbol && v1.value1.value0.value0 === "do")) {
-                  return Control_Bind.bind(Effect.bindEffect)(evalDo(v)(v1.value1.value1))(evalAst(v));
+                  return evalDo(v)(v1.value1.value1);
               };
               if (v1.value1 instanceof Data_List_Types.Cons && (v1.value1.value0 instanceof Types.MalSymbol && v1.value1.value0.value0 === "fn*")) {
                   return evalFnMatch(v)(v1.value1.value1);
@@ -21608,7 +21599,7 @@ var PS = {};
           if (v instanceof Data_Either.Right) {
               return Control_Bind.bindFlipped(Effect.bindEffect)(print)($$eval(env)(v.value0));
           };
-          throw new Error("Failed pattern match at Main (line 152, column 15 - line 154, column 38): " + [ v.constructor.name ]);
+          throw new Error("Failed pattern match at Mal.Step5 (line 144, column 15 - line 146, column 38): " + [ v.constructor.name ]);
       };
   };
   var loop = function (env) {
@@ -21625,7 +21616,7 @@ var PS = {};
               if (result instanceof Data_Either.Left) {
                   return Effect_Console.error(Data_Show.show(Effect_Exception.showError)(result.value0))();
               };
-              throw new Error("Failed pattern match at Main (line 164, column 7 - line 166, column 38): " + [ result.constructor.name ]);
+              throw new Error("Failed pattern match at Mal.Step5 (line 156, column 7 - line 158, column 38): " + [ result.constructor.name ]);
           })();
           return loop(env)();
       };
@@ -21654,4 +21645,4 @@ var PS = {};
   exports["setFn"] = setFn;
   exports["main"] = main;
 })(PS);
-PS["Main"].main();
+PS["Mal.Step5"].main();

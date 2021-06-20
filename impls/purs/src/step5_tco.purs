@@ -1,4 +1,4 @@
-module Main where
+module Mal.Step5 where
 
 import Prelude
 
@@ -42,7 +42,7 @@ eval env (MalList _ ast)   = case ast of
     case es of
       (MalFunction {fn:f} : args) -> f args
       _                           -> throw "invalid function"
-eval env            ast = evalAst env ast
+eval env ast               = evalAst env ast
 
 
 evalAst :: RefEnv -> MalExpr -> Effect MalExpr

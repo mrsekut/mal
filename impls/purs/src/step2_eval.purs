@@ -1,4 +1,4 @@
-module Main2 where
+module Mal.Step2 where
 
 import Prelude
 
