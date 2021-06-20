@@ -113,11 +113,12 @@ readVector = fix $ \_ ->
 --
 
 readHashMap :: Parser String MalExpr
-readHashMap = fix $ \_ -> char '{' *> ignored *> endBy readForm ignored <* char '}'
-    <#> keyValuePairs
-    <#> case _ of
-      Just ts -> MalHashMap $ listToMap ts
-      Nothing -> MalString "hash map error" -- FIXME: error
+readHashMap = fix $ \_
+  -> char '{' *> ignored *> endBy readForm ignored <* char '}'
+  <#> keyValuePairs
+  <#> case _ of
+    Just ts -> MalHashMap $ listToMap ts
+    Nothing -> MalString "hash map error" -- FIXME: error
 
 
 

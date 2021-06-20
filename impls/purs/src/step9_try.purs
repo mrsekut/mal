@@ -1,4 +1,4 @@
-module Main8 where
+module Main where
 
 import Prelude
 
@@ -11,7 +11,7 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (error, log)
-import Effect.Exception (throw)
+import Effect.Exception (message, throw)
 import Env as Env
 import Mal.Reader (readStr)
 import Printer (printStr)
@@ -57,7 +57,7 @@ loop env = do
       result <- try $ rep env line
       case result of
         Right exp -> log exp
-        Left err  -> error $ show err
+        Left err  -> error $ "Error: " <> message err
       loop env
 
 
@@ -103,6 +103,8 @@ eval env (MalList ast)   = case ast of
   MalSymbol "defmacro!" : es        -> evalDefmacro env es
   MalSymbol "macroexpand" : es      -> evalMacroexpand env es
 
+  MalSymbol "try*" : es             -> evalTry env es
+
   _                                 -> do
     es <- traverse (evalAst env) ast
     case es of
@@ -127,7 +129,7 @@ evalAst env ast = do
 
 
 
--- DEF
+-- Def
 
 evalDef :: RefEnv -> List MalExpr -> Effect MalExpr
 evalDef env (MalSymbol v : e : Nil) = do
@@ -138,7 +140,7 @@ evalDef _ _                         = throw "invalid def!"
 
 
 
--- LET
+-- Let
 
 evalLet :: RefEnv -> List MalExpr -> Effect MalExpr
 evalLet env (MalList ps : e : Nil)   = do
@@ -161,7 +163,7 @@ letBind _ _                         = throw "invalid let*"
 
 
 
--- IF
+-- If
 
 evalIf :: RefEnv -> List MalExpr -> Effect MalExpr
 evalIf env (b:t:e:Nil) = do
@@ -180,7 +182,7 @@ evalIf _ _             = throw "invalid if"
 
 
 
--- DO
+-- Do
 
 evalDo :: RefEnv -> List MalExpr -> Effect MalExpr
 evalDo env es = foldM (const $ evalAst env) MalNil es
@@ -188,7 +190,7 @@ evalDo env es = foldM (const $ evalAst env) MalNil es
 
 
 
--- FUNCTION
+-- Function
 
 evalFnMatch :: RefEnv -> List MalExpr -> Effect MalExpr
 evalFnMatch env (MalList params : body : Nil)   = evalFn env params body
@@ -216,7 +218,7 @@ evalFn env params body = do
 
 
 
--- QUOTE
+-- Quote
 
 evalQuote :: RefEnv -> List MalExpr -> Effect MalExpr
 evalQuote _ (e:Nil) = pure e
@@ -254,7 +256,7 @@ qqIter elt acc                                              = do
 
 
 
--- MACRO
+-- Macro
 
 evalDefmacro :: RefEnv -> List MalExpr -> Effect MalExpr
 evalDefmacro env (MalSymbol a : b : Nil) = do
@@ -280,3 +282,19 @@ macroexpand env ast@(MalList (MalSymbol a : args)) = do
     Just (MalFunction {fn:f, macro:true}) -> macroexpand env =<< f args
     _                                     -> pure ast
 macroexpand _ ast                                  = pure ast
+
+
+
+-- Try
+
+evalTry :: RefEnv -> List MalExpr -> Effect MalExpr
+evalTry env (a:Nil) = evalAst env a
+evalTry env (thw : MalList ((MalSymbol "catch*") : (MalSymbol e) : b : Nil) : Nil) = do
+  res <- try $ evalAst env thw
+  case res of
+    Left err -> do
+      tryEnv <- Env.newEnv env
+      Env.set tryEnv e $ MalString $ message err -- FIXME:
+      evalAst tryEnv b
+    Right v -> pure v
+evalTry _ _         = throw "invalid try*"
