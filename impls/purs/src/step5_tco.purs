@@ -1,4 +1,4 @@
-module Mal.Step5 where
+module Main where
 
 import Prelude
 
@@ -34,7 +34,7 @@ eval _ ast@(MalList _ Nil) = pure ast
 eval env (MalList _ ast)   = case ast of
   MalSymbol "def!" : es -> evalDef env es
   MalSymbol "let*" : es -> evalLet env es
-  MalSymbol "if" : es   -> evalIf env es
+  MalSymbol "if" : es   -> evalIf env es >>= eval env
   MalSymbol "do" : es   -> evalDo env es
   MalSymbol "fn*" : es  -> evalFnMatch env es
   _                     -> do
@@ -88,13 +88,13 @@ letBind _ _                         = throw "invalid let*"
 evalIf :: RefEnv -> List MalExpr -> Effect MalExpr
 evalIf env (b:t:e:Nil) = do
   cond <- evalAst env b
-  evalAst env case cond of
+  pure case cond of
     MalNil           -> e
     MalBoolean false -> e
     _                -> t
 evalIf env (b:t:Nil)   = do
   cond <- evalAst env b
-  evalAst env case cond of
+  pure case cond of
     MalNil           -> MalNil
     MalBoolean false -> MalNil
     _                -> t
@@ -102,7 +102,7 @@ evalIf _ _             = throw "invalid if"
 
 
 evalDo :: RefEnv -> List MalExpr -> Effect MalExpr
-evalDo env es = foldM (const $ evalAst env) MalNil es
+evalDo env es    = foldM (const $ evalAst env) MalNil es
 
 
 evalFnMatch :: RefEnv -> List MalExpr -> Effect MalExpr
