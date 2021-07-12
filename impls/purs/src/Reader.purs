@@ -8,6 +8,8 @@ import Data.Either (Either(..))
 import Data.Int (fromString)
 import Data.List (List(..), many, (:))
 import Data.Maybe (Maybe(..), fromMaybe)
+import Effect (Effect)
+import Effect.Exception (throw)
 import Printer (keyValuePairs)
 import Text.Parsing.Parser (Parser, fail, runParser)
 import Text.Parsing.Parser.Combinators (endBy, skipMany, skipMany1, try)
@@ -165,7 +167,7 @@ readForm = fix $ \_ -> ignored
 
 --
 
-readStr :: String -> Either String MalExpr
+readStr :: String -> Effect MalExpr
 readStr str = case runParser str readForm of
-  Left err  -> Left $ show err
-  Right val -> Right val
+  Left _    -> throw "EOF"
+  Right val -> pure val

@@ -22,7 +22,7 @@ import Types (MalExpr(..), MalFn, RefEnv, toHashMap, toVector)
 
 -- READ
 
-read :: String -> Either String MalExpr
+read :: String -> Effect MalExpr
 read = readStr
 
 
@@ -40,8 +40,8 @@ eval env (MalList _ ast)   = case ast of
   _                     -> do
     es <- traverse (evalAst env) ast
     case es of
-      (MalFunction {fn:f} : args) -> f args
-      _                           -> throw "invalid function"
+      MalFunction {fn:f} : args -> f args
+      _                          -> throw "invalid function"
 eval env ast               = evalAst env ast
 
 
@@ -114,7 +114,11 @@ evalFnMatch _ _                                   = throw "invalid fn*"
 evalFn :: RefEnv -> List MalExpr -> MalExpr -> Effect MalExpr
 evalFn env params body = do
   paramsStr <- traverse unwrapSymbol params
-  pure $ MalFunction { fn : fn paramsStr body, params:paramsStr, macro:false, meta:MalNil }
+  pure $ MalFunction { fn     : fn paramsStr body
+                     , params : paramsStr
+                     , macro  : false
+                     , meta   : MalNil
+                     }
   where
 
   fn :: List String -> MalExpr -> MalFn
@@ -141,9 +145,7 @@ print = printStr
 -- REPL
 
 rep :: RefEnv -> String -> Effect String
-rep env str = case read str of
-  Left _    -> throw "EOF"
-  Right ast -> print =<< eval env ast
+rep env str = print =<< evalAst env =<< read str
 
 
 loop :: RefEnv -> Effect Unit
