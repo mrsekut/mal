@@ -2,19 +2,32 @@ module Types where
 
 import Prelude
 
+import Control.Monad.Free.Trans (FreeT, runFreeT)
+import Control.Monad.Rec.Class (class MonadRec)
 import Data.Array as Array
 import Data.Foldable (class Foldable)
+import Data.Identity (Identity(..))
 import Data.List (List(..), foldr, (:))
 import Data.List as List
-import Data.Map (Map)
+import Data.Map (Map, toUnfoldable)
 import Data.Map.Internal as Map
 import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits (fromCharArray, toCharArray)
+import Data.String.CodeUnits (singleton)
 import Data.Traversable (foldl)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
+import Effect.Unsafe (unsafePerformEffect)
+
+runIdentity :: forall a. Identity a -> a
+runIdentity (Identity a) = a
+
+type SafeT = FreeT Identity
+
+runSafeT :: forall m a. (MonadRec m) => SafeT m a -> m a
+runSafeT = runFreeT (pure <<< runIdentity)
 
 
 data MalExpr
@@ -128,3 +141,45 @@ keyValuePairs :: List MalExpr -> Maybe (List (Tuple String MalExpr))
 keyValuePairs Nil                     = pure Nil
 keyValuePairs (MalString k : v : kvs) = (:)  (Tuple k v) <$> keyValuePairs kvs
 keyValuePairs _                       = Nothing
+
+
+
+instance Show MalExpr where
+  show = unsafePerformEffect <<< printStr
+
+printStr :: MalExpr -> Effect String
+printStr MalNil           = pure "nil"
+printStr (MalBoolean b)   = pure $ show b
+printStr (MalInt n)       = pure $ show n
+printStr (MalString str)  = pure $ "\"" <> (str # stringToCharList # map unescape # flatStrings) <> "\""
+printStr (MalKeyword key) = pure key
+printStr (MalAtom _ r)      = "(atom " <<> (Ref.read r >>= printStr) <>> ")"
+printStr (MalSymbol name)   = pure name
+printStr (MalList _ xs)     = "(" <<> printList xs <>> ")"
+printStr (MalVector _ vs)   = "[" <<> printList vs <>> "]"
+printStr (MalHashMap _ hm)  = "{" <<> (hm # toUnfoldable # flatTuples # printList) <>> "}"
+printStr (MalFunction _)    = pure "#<function>"
+
+
+printList :: List MalExpr -> Effect String
+printList Nil     = pure ""
+printList (x:Nil) = printStr x
+printList (x:xs)  = printStr x <> pure " " <> printList xs
+
+unescape :: Char -> String
+unescape '\n' = "\\n"
+unescape '\\' = "\\\\"
+unescape '"'  = "\\\""
+unescape c    = singleton c
+
+
+leftConcat :: forall m s. Bind m => Applicative m => Semigroup s => s -> m s -> m s
+leftConcat op f = (<>) <$> pure op <*> f
+
+infixr 5 leftConcat as <<>
+
+
+rightConcat :: forall m s. Apply m => Semigroup s => Applicative m => m s -> s -> m s
+rightConcat f cl = (<>) <$> f <*> pure cl
+
+infixr 5 rightConcat as <>>

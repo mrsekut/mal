@@ -12,6 +12,8 @@ You can edit this file as you like.
   , "either"
   , "exceptions"
   , "foldable-traversable"
+  , "freet"
+  , "identity"
   , "integers"
   , "lists"
   , "maybe"
@@ -24,6 +26,7 @@ You can edit this file as you like.
   , "psci-support"
   , "refs"
   , "strings"
+  , "tailrec"
   , "transformers"
   , "tuples"
   ]

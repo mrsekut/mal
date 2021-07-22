@@ -30,76 +30,76 @@ import Types (Key(..), MalExpr(..), MalFn, Meta(..), keyToString, stringToCharLi
 
 ns :: List (Tuple String MalFn)
 ns = fromFoldable
-  [ Tuple "throw"      throw'
+  [ --Tuple "throw"      throw'
 
-  , Tuple "true?"       $ pred1 trueQ
-  , Tuple "false?"      $ pred1 falseQ
+  -- , Tuple "true?"       $ pred1 trueQ
+  -- , Tuple "false?"      $ pred1 falseQ
 
-  , Tuple "="           eqQ
+  Tuple "="           eqQ
   , Tuple "+"           $ numOp (+)
   , Tuple "-"           $ numOp (-)
-  , Tuple "*"           $ numOp (*)
-  , Tuple "/"           $ numOp (/)
-  , Tuple "<"           $ cmpOp (<)
-  , Tuple "<="          $ cmpOp (<=)
-  , Tuple ">"           $ cmpOp (>)
-  , Tuple ">="          $ cmpOp (>=)
-  , Tuple "number?"     $ pred1 numberQ
+  -- , Tuple "*"           $ numOp (*)
+  -- , Tuple "/"           $ numOp (/)
+  -- , Tuple "<"           $ cmpOp (<)
+  -- , Tuple "<="          $ cmpOp (<=)
+  -- , Tuple ">"           $ cmpOp (>)
+  -- , Tuple ">="          $ cmpOp (>=)
+  -- , Tuple "number?"     $ pred1 numberQ
 
-  , Tuple "pr-str"      prStr
-  , Tuple "str"         str
-  , Tuple "string?"     $ pred1 stringQ
-  , Tuple "prn"         prn
-  , Tuple "println"     println
-  , Tuple "slurp"       slurp
-  , Tuple "readline"    readline'
-  , Tuple "read-string" readString
-  , Tuple "time-ms"     timeMs
+  -- , Tuple "pr-str"      prStr
+  -- , Tuple "str"         str
+  -- , Tuple "string?"     $ pred1 stringQ
+  -- , Tuple "prn"         prn
+  -- , Tuple "println"     println
+  -- , Tuple "slurp"       slurp
+  -- , Tuple "readline"    readline'
+  -- , Tuple "read-string" readString
+  -- , Tuple "time-ms"     timeMs
 
-  , Tuple "symbol?"     $ pred1 symbolQ
-  , Tuple "symbol"      symbol
-  , Tuple "keyword?"    $ pred1 keywordQ
-  , Tuple "keyword"     keyword
+  -- , Tuple "symbol?"     $ pred1 symbolQ
+  -- , Tuple "symbol"      symbol
+  -- , Tuple "keyword?"    $ pred1 keywordQ
+  -- , Tuple "keyword"     keyword
 
-  , Tuple "list"        list
-  , Tuple "list?"       $ pred1 listQ
-  , Tuple "nil?"        $ pred1 nilQ
-  , Tuple "empty?"      $ pred1 emptyQ
-  , Tuple "count"       count
-  , Tuple "sequential?" $ pred1 sequentialQ
-  , Tuple "cons"        cons
-  , Tuple "concat"      concat'
-  , Tuple "nth"         nth
-  , Tuple "first"       first
-  , Tuple "rest"        rest
-  , Tuple "apply"       apply'
-  , Tuple "map"         map'
-  , Tuple "map?"        $ pred1 mapQ
-  , Tuple "conj"        conj
-  , Tuple "seq"         seq
+  -- , Tuple "list"        list
+  -- , Tuple "list?"       $ pred1 listQ
+  -- , Tuple "nil?"        $ pred1 nilQ
+  -- , Tuple "empty?"      $ pred1 emptyQ
+  -- , Tuple "count"       count
+  -- , Tuple "sequential?" $ pred1 sequentialQ
+  -- , Tuple "cons"        cons
+  -- , Tuple "concat"      concat'
+  -- , Tuple "nth"         nth
+  -- , Tuple "first"       first
+  -- , Tuple "rest"        rest
+  -- , Tuple "apply"       apply'
+  -- , Tuple "map"         map'
+  -- , Tuple "map?"        $ pred1 mapQ
+  -- , Tuple "conj"        conj
+  -- , Tuple "seq"         seq
 
-  , Tuple "vec"         vec
-  , Tuple "vector"      vector
-  , Tuple "vector?"     $ pred1 vectorQ
+  -- , Tuple "vec"         vec
+  -- , Tuple "vector"      vector
+  -- , Tuple "vector?"     $ pred1 vectorQ
 
-  , Tuple "hash-map"    hashMap
-  , Tuple "assoc"       assoc
-  , Tuple "dissoc"      dissoc
-  , Tuple "get"         get
-  , Tuple "contains?"   containsQ
-  , Tuple "keys"        keys
-  , Tuple "vals"        vals
+  -- , Tuple "hash-map"    hashMap
+  -- , Tuple "assoc"       assoc
+  -- , Tuple "dissoc"      dissoc
+  -- , Tuple "get"         get
+  -- , Tuple "contains?"   containsQ
+  -- , Tuple "keys"        keys
+  -- , Tuple "vals"        vals
 
-  , Tuple "meta"        meta
-  , Tuple "with-meta"   withMeta
+  -- , Tuple "meta"        meta
+  -- , Tuple "with-meta"   withMeta
 
-  , Tuple "atom"        atom
-  , Tuple "atom?"       $ pred1 atomQ
-  , Tuple "deref"       deref
-  , Tuple "reset!"      resetB
-  , Tuple "swap!"       swapB
+  -- , Tuple "atom"        atom
+  -- , Tuple "atom?"       $ pred1 atomQ
+  -- , Tuple "deref"       deref
+  -- , Tuple "reset!"      resetB
+  -- , Tuple "swap!"       swapB
 
-  , Tuple "macro?"      $ pred1 macroQ
+  -- , Tuple "macro?"      $ pred1 macroQ
 
   , Tuple "fn?"         $ pred1 fnQ
   ]
